@@ -66,6 +66,8 @@ def _seed(db: Session) -> None:
             version=1,
         )
     )
+    # No ORM relationship orders these separate entities; flush each referenced row.
+    db.flush()
     db.add(
         Account(
             id=ACCOUNT_ID,
@@ -79,6 +81,7 @@ def _seed(db: Session) -> None:
             version=1,
         )
     )
+    db.flush()
     db.add(
         ImportBatch(
             id=BATCH_ID,
@@ -93,6 +96,7 @@ def _seed(db: Session) -> None:
             version=1,
         )
     )
+    db.flush()
     db.add(
         ImportCandidate(
             id=CANDIDATE_ID,

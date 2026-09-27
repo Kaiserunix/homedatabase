@@ -255,8 +255,11 @@ describe("契约测试（openapi.yaml，fetch 打桩，非端到端）", () => {
       vi.stubGlobal("fetch", fetchMock);
 
       const blob = await exportReport(5, { from: "2026-01-01", to: "2026-01-31" });
-      expect(blob).toBeInstanceOf(Blob);
+      // Node fetch and jsdom may expose different Blob constructors. Verify the payload.
+      expect(Object.prototype.toString.call(blob)).toBe("[object Blob]");
       expect(blob.size).toBe(4);
+      expect(blob.type).toBe("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      expect(new Uint8Array(await blob.arrayBuffer())).toEqual(new Uint8Array([0x50, 0x4b, 0x03, 0x04]));
 
       const { url, init } = callOf(fetchMock);
       expect(url).toContain("/api/reports/export?");
