@@ -141,7 +141,7 @@ def _verify_final_state(db: Session, outcomes: list[Outcome]) -> str:
         raise AssertionError("import batch or candidate disappeared")
     if batch.status != "posted":
         raise AssertionError(f"batch status is {batch.status!r}, expected 'posted'")
-    if batch.job_message != "批次候选已全部处理并入账":
+    if batch.job_message != "已入账 1 条候选":
         raise AssertionError(f"unexpected batch message: {batch.job_message!r}")
     if candidate.status != "confirmed" or not candidate.transaction_id:
         raise AssertionError("candidate was not linked to a confirmed transaction")
