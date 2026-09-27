@@ -1,0 +1,373 @@
+name: homedatabase-domestic
+
+x-app-environment: &app-environment
+  HOMEDATABASE_ENVIRONMENT: production
+  HOMEDATABASE_DATABASE_URL: >-
+    postgresql+psycopg://${HOMEDATABASE_DB_USER:-homedatabase}:${HOMEDATABASE_DB_PASSWORD:?set HOMEDATABASE_DB_PASSWORD}@postgres:5432/${HOMEDATABASE_DB_NAME:-homedatabase}
+  HOMEDATABASE_AUTO_CREATE_SCHEMA: "false"
+  HOMEDATABASE_SEED_DEMO: "false"
+  HOMEDATABASE_DEV_MEMBER_ID: ""
+  HOMEDATABASE_SESSION_COOKIE_SECURE: "true"
+  HOMEDATABASE_WEBAUTHN_RP_ID: ${HOMEDATABASE_PUBLIC_HOST:?set HOMEDATABASE_PUBLIC_HOST}
+  HOMEDATABASE_WEBAUTHN_ORIGINS: '["https://${HOMEDATABASE_PUBLIC_HOST:?set HOMEDATABASE_PUBLIC_HOST}"]'
+  HOMEDATABASE_ALLOWED_HOSTS: '["${HOMEDATABASE_PUBLIC_HOST:?set HOMEDATABASE_PUBLIC_HOST}"]'
+  HOMEDATABASE_REDIS_URL: redis://:${HOMEDATABASE_REDIS_PASSWORD:?set HOMEDATABASE_REDIS_PASSWORD}@redis:6379/0
+  HOMEDATABASE_TASK_ALWAYS_EAGER: "false"
+  HOMEDATABASE_AUTH_RATE_LIMIT_ATTEMPTS: ${HOMEDATABASE_AUTH_RATE_LIMIT_ATTEMPTS:-10}
+  HOMEDATABASE_AUTH_RATE_LIMIT_IP_ATTEMPTS: ${HOMEDATABASE_AUTH_RATE_LIMIT_IP_ATTEMPTS:-30}
+  HOMEDATABASE_AUTH_RATE_LIMIT_SUBJECT_ATTEMPTS: ${HOMEDATABASE_AUTH_RATE_LIMIT_SUBJECT_ATTEMPTS:-50}
+  HOMEDATABASE_SOURCE_ARCHIVE_DIR: /var/lib/homedatabase/source-files
+  HOMEDATABASE_SOURCE_RETENTION_DAYS: ${HOMEDATABASE_SOURCE_RETENTION_DAYS:-90}
+  HOMEDATABASE_SOURCE_ENCRYPTION_KEY: ${HOMEDATABASE_SOURCE_ENCRYPTION_KEY:?set HOMEDATABASE_SOURCE_ENCRYPTION_KEY}
+  HOMEDATABASE_OCR_ENABLED: ${HOMEDATABASE_OCR_ENABLED:-false}
+  HOMEDATABASE_OCR_JOBS_DIR: /var/lib/homedatabase/ocr-jobs
+  HOMEDATABASE_OCR_TIMEOUT_SECONDS: ${HOMEDATABASE_OCR_TIMEOUT_SECONDS:-600}
+  HOMEDATABASE_OCR_MAX_PAGES: ${HOMEDATABASE_OCR_MAX_PAGES:-200}
+  HOMEDATABASE_OCR_PAGES_PER_JOB: ${HOMEDATABASE_OCR_PAGES_PER_JOB:-10}
+  HOMEDATABASE_OCR_MAX_TRANSACTIONS: ${HOMEDATABASE_OCR_MAX_TRANSACTIONS:-5000}
+  HOMEDATABASE_OCR_MAX_IMAGE_PIXELS: ${HOMEDATABASE_OCR_MAX_IMAGE_PIXELS:-20000000}
+  HOMEDATABASE_BACKUP_DIR: /var/lib/homedatabase/backups
+  HOMEDATABASE_BACKUP_ENCRYPTION_KEY: ${HOMEDATABASE_BACKUP_ENCRYPTION_KEY:?set HOMEDATABASE_BACKUP_ENCRYPTION_KEY}
+  HOMEDATABASE_BACKUP_LOCATION_KIND: tencent
+  HOMEDATABASE_BACKUP_KEEP_HOURLY: ${HOMEDATABASE_BACKUP_KEEP_HOURLY:-48}
+  HOMEDATABASE_BACKUP_KEEP_DAILY: ${HOMEDATABASE_BACKUP_KEEP_DAILY:-30}
+  HOMEDATABASE_BACKUP_KEEP_MONTHLY: ${HOMEDATABASE_BACKUP_KEEP_MONTHLY:-12}
+  HOMEDATABASE_BACKUP_MIN_FREE_BYTES: ${HOMEDATABASE_BACKUP_MIN_FREE_BYTES:-536870912}
+  HOMEDATABASE_BACKUP_ORPHAN_GRACE_SECONDS: ${HOMEDATABASE_BACKUP_ORPHAN_GRACE_SECONDS:-300}
+  HOMEDATABASE_PG_DUMP_PATH: /usr/bin/pg_dump
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${HOMEDATABASE_DB_NAME:-homedatabase}
+      POSTGRES_USER: ${HOMEDATABASE_DB_USER:-homedatabase}
+      POSTGRES_PASSWORD: ${HOMEDATABASE_DB_PASSWORD:?set HOMEDATABASE_DB_PASSWORD}
+    command:
+      - postgres
+      - -c
+      - max_connections=30
+      - -c
+      - shared_buffers=128MB
+      - -c
+      - effective_cache_size=384MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=64MB
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - private
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    mem_limit: 640m
+    mem_reservation: 256m
+    cpus: 0.75
+    pids_limit: 128
+    security_opt:
+      - no-new-privileges:true
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    environment:
+      REDIS_PASSWORD: ${HOMEDATABASE_REDIS_PASSWORD:?set HOMEDATABASE_REDIS_PASSWORD}
+    command:
+      - /bin/sh
+      - -ec
+      - >-
+        exec redis-server --appendonly yes --appendfsync everysec
+        --maxmemory 96mb --maxmemory-policy noeviction
+        --requirepass "$${REDIS_PASSWORD}"
+    volumes:
+      - redis_data:/data
+    networks:
+      - private
+    ports:
+      - target: 6379
+        published: "${HOMEDATABASE_REDIS_TUNNEL_PORT:-6379}"
+        host_ip: ${HOMEDATABASE_TUNNEL_BIND_IP:-127.0.0.1}
+        protocol: tcp
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$${REDIS_PASSWORD}\" redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    mem_limit: 160m
+    mem_reservation: 64m
+    cpus: 0.25
+    pids_limit: 64
+    security_opt:
+      - no-new-privileges:true
+
+  migrate:
+    image: ${HOMEDATABASE_IMAGE:-homedatabase-api:local}
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    command: ["alembic", "-c", "/app/backend/alembic.ini", "upgrade", "head"]
+    environment: *app-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - private
+    restart: "no"
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    mem_limit: 384m
+    cpus: 0.5
+    pids_limit: 64
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  api:
+    image: ${HOMEDATABASE_IMAGE:-homedatabase-api:local}
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command:
+      - uvicorn
+      - homedatabase_api.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --workers
+      - "1"
+      - --proxy-headers
+      - --forwarded-allow-ips
+      - "*"
+    environment: *app-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    volumes:
+      - source_archive:/var/lib/homedatabase/source-files
+      - encrypted_backups:/var/lib/homedatabase/backups
+    networks:
+      - private
+      - edge
+    ports:
+      - target: 8000
+        published: "${HOMEDATABASE_API_PORT:-8000}"
+        host_ip: 127.0.0.1
+        protocol: tcp
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    mem_limit: 512m
+    mem_reservation: 192m
+    cpus: 0.75
+    pids_limit: 128
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+
+  ocr-dispatcher:
+    profiles: ["ocr"]
+    image: ${HOMEDATABASE_IMAGE:-homedatabase-api:local}
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+      target: runtime
+    restart: unless-stopped
+    command:
+      - celery
+      - -A
+      - homedatabase_api.celery_app:celery_app
+      - worker
+      - --loglevel=INFO
+      - --queues=ocr
+      - --concurrency=1
+      - --prefetch-multiplier=1
+      - --max-tasks-per-child=10
+      - --hostname=ocr-dispatcher@%h
+    environment: *app-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    volumes:
+      - source_archive:/var/lib/homedatabase/source-files:ro
+      - ocr_jobs:/var/lib/homedatabase/ocr-jobs
+    networks:
+      - private
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    mem_limit: 512m
+    mem_reservation: 128m
+    cpus: 0.75
+    pids_limit: 128
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 10m
+    # The shared runtime image probes the API port by default; a Celery worker
+    # does not listen on 8000, so keeping that inherited probe would report a
+    # healthy worker as unhealthy. Worker liveness is verified with Celery ping.
+    healthcheck:
+      disable: true
+
+  ocr-runner:
+    profiles: ["ocr"]
+    image: ${HOMEDATABASE_OCR_IMAGE:-homedatabase-ocr:local}
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+      target: ocr-runner
+      args:
+        CODEX_CLI_VERSION: ${HOMEDATABASE_CODEX_CLI_VERSION:-0.145.0}
+    restart: unless-stopped
+    environment:
+      HOME: /home/homedatabase
+      CODEX_HOME: /home/homedatabase/.codex
+      HOMEDATABASE_OCR_JOBS_DIR: /var/lib/homedatabase/ocr-jobs
+      HOMEDATABASE_OCR_TIMEOUT_SECONDS: ${HOMEDATABASE_OCR_TIMEOUT_SECONDS:-600}
+      HOMEDATABASE_OCR_RUNNER_POLL_SECONDS: ${HOMEDATABASE_OCR_RUNNER_POLL_SECONDS:-0.5}
+      HOMEDATABASE_OCR_JOB_STALE_SECONDS: ${HOMEDATABASE_OCR_JOB_STALE_SECONDS:-3600}
+      HOMEDATABASE_OCR_CODEX_MODEL: ${HOMEDATABASE_OCR_CODEX_MODEL:-}
+    volumes:
+      - ocr_jobs:/var/lib/homedatabase/ocr-jobs
+      - codex_auth:/home/homedatabase/.codex
+    networks:
+      - ocr_egress
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    mem_limit: 384m
+    mem_reservation: 96m
+    cpus: 0.75
+    pids_limit: 96
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+
+  web:
+    image: ${HOMEDATABASE_WEB_IMAGE:-homedatabase-web:local}
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_USE_MOCKS: "false"
+    restart: unless-stopped
+    environment:
+      HOMEDATABASE_PUBLIC_HOST: ${HOMEDATABASE_PUBLIC_HOST:?set HOMEDATABASE_PUBLIC_HOST}
+    depends_on:
+      api:
+        condition: service_healthy
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - edge
+    ports:
+      - target: 80
+        published: "${HOMEDATABASE_HTTP_PORT:-80}"
+        protocol: tcp
+      - target: 443
+        published: "${HOMEDATABASE_HTTPS_PORT:-443}"
+        protocol: tcp
+      - target: 443
+        published: "${HOMEDATABASE_HTTPS_PORT:-443}"
+        protocol: udp
+    mem_limit: 128m
+    mem_reservation: 32m
+    cpus: 0.25
+    pids_limit: 64
+    stop_grace_period: 30s
+
+  backup:
+    image: ${HOMEDATABASE_IMAGE:-homedatabase-api:local}
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    profiles: ["maintenance"]
+    command: ["homedatabase-backup"]
+    environment: *app-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - encrypted_backups:/var/lib/homedatabase/backups
+    networks:
+      - private
+    restart: "no"
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+    mem_limit: 384m
+    cpus: 0.5
+    pids_limit: 64
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  retention:
+    image: ${HOMEDATABASE_IMAGE:-homedatabase-api:local}
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    profiles: ["maintenance"]
+    command: ["homedatabase-retention"]
+    environment: *app-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - source_archive:/var/lib/homedatabase/source-files
+    networks:
+      - private
+    restart: "no"
+    read_only: true
+    tmpfs:
+      - /tmp:size=128m,mode=1777
+    mem_limit: 256m
+    cpus: 0.25
+    pids_limit: 64
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  private:
+    internal: true
+  edge:
+  ocr_egress:
+
+volumes:
+  postgres_data:
+  redis_data:
+  source_archive:
+  encrypted_backups:
+  ocr_jobs:
+    driver: local
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: size=512m,uid=10001,gid=10001,mode=0770
+  codex_auth:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,43 @@
+name: homedatabase-overseas-worker
+
+services:
+  heavy-worker:
+    image: ${HOMEDATABASE_IMAGE:?set HOMEDATABASE_IMAGE to an immutable tag or digest}
+    hostname: homedatabase-heavy-overseas
+    restart: unless-stopped
+    environment:
+      # This must resolve to the domestic Redis private-tunnel address, never a public IP.
+      HOMEDATABASE_REDIS_URL: ${HOMEDATABASE_REDIS_URL:?set private-tunnel HOMEDATABASE_REDIS_URL}
+    command:
+      - celery
+      - -A
+      - homedatabase_api.celery_app:celery_app
+      - worker
+      - --loglevel=INFO
+      - --queues=heavy
+      - --concurrency=1
+      - --prefetch-multiplier=1
+      - --max-tasks-per-child=10
+      - --hostname=heavy@%h
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          celery -A homedatabase_api.celery_app:celery_app inspect ping
+          --destination=heavy@homedatabase-heavy-overseas --timeout=5 | grep -q pong
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    read_only: true
+    tmpfs:
+      - /tmp:size=2g,mode=1777
+    mem_limit: 6g
+    mem_reservation: 1g
+    cpus: 2.0
+    pids_limit: 256
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 10m

@@ -1,0 +1,19 @@
+{$HOMEDATABASE_PUBLIC_HOST} {
+    encode zstd gzip
+
+    handle /api/* {
+        reverse_proxy api:8000
+    }
+
+    @immutable path /assets/*
+    header @immutable Cache-Control "public, max-age=31536000, immutable"
+
+    @app_shell path / /index.html /admin.html /sw.js /manifest.webmanifest
+    header @app_shell Cache-Control "no-cache"
+
+    handle {
+        root * /srv
+        try_files {path} /index.html
+        file_server
+    }
+}

@@ -1,0 +1,11 @@
+[Unit]
+Description=Apply HomeDatabase source-file retention daily
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+AccuracySec=10min
+Unit=homedatabase-retention.service
+
+[Install]
+WantedBy=timers.target

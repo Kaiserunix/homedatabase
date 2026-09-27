@@ -1,0 +1,68 @@
+name: backend-ci
+
+on:
+  push:
+    paths:
+      - "backend/**"
+      - "openapi.yaml"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - "openapi.yaml"
+      - ".github/workflows/backend-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: homedatabase_test
+          POSTGRES_USER: homedatabase
+          POSTGRES_PASSWORD: homedatabase_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U homedatabase -d homedatabase_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      HOMEDATABASE_ENVIRONMENT: test
+      HOMEDATABASE_DATABASE_URL: postgresql+psycopg://homedatabase:homedatabase_test@127.0.0.1:5432/homedatabase_test
+      HOMEDATABASE_AUTO_CREATE_SCHEMA: "false"
+      HOMEDATABASE_DEV_MEMBER_ID: ""
+      HOMEDATABASE_SESSION_COOKIE_SECURE: "false"
+      HOMEDATABASE_TASK_ALWAYS_EAGER: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - run: uv python install 3.13
+      - run: uv sync --locked --project backend --group dev --python 3.13
+      - run: uv run --project backend ruff check backend/src backend/tests backend/scripts backend/migrations
+      - run: uv run --project backend ruff format --check backend/src backend/tests backend/scripts backend/migrations
+      - name: PostgreSQL migration round trip
+        run: |
+          uv run --project backend alembic -c backend/alembic.ini upgrade head
+          uv run --project backend alembic -c backend/alembic.ini downgrade base
+          uv run --project backend alembic -c backend/alembic.ini upgrade head
+          uv run --project backend alembic -c backend/alembic.ini check
+      - name: PostgreSQL 17 backup advisory lock
+        run: uv run --project backend python backend/scripts/verify_postgres_backup_lock.py
+      - name: PostgreSQL deferred balance constraint
+        run: uv run --project backend python backend/scripts/verify_postgres_balance_trigger.py
+      - name: PostgreSQL concurrent import confirmation
+        run: uv run --project backend python backend/scripts/verify_postgres_import_confirm_race.py
+      - run: uv run --project backend pytest backend/tests
+      - name: OpenAPI contract is current
+        run: |
+          uv run --project backend python backend/scripts/export_openapi.py --output "$RUNNER_TEMP/openapi.yaml"
+          cmp openapi.yaml "$RUNNER_TEMP/openapi.yaml"

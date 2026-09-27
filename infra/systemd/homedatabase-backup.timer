@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the encrypted HomeDatabase backup every hour
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+AccuracySec=1min
+Unit=homedatabase-backup.service
+
+[Install]
+WantedBy=timers.target

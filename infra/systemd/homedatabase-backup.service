@@ -1,0 +1,10 @@
+[Unit]
+Description=Create and verify an encrypted HomeDatabase snapshot
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/homedatabase
+ExecStart=/usr/bin/docker compose --env-file infra/.env.domestic -f infra/compose.domestic.yml --profile maintenance run --rm backup
+TimeoutStartSec=45min

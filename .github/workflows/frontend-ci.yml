@@ -1,0 +1,27 @@
+name: frontend-ci
+
+on:
+  push:
+    paths: ["frontend/**"]
+  pull_request:
+    paths: ["frontend/**"]
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - run: npm test
+      - run: npm run test:budget
+      # Real-backend e2e requires a running isolated API and local test credentials.
+      # Run it explicitly using frontend/playwright.config.ts; no shared login secret in CI.

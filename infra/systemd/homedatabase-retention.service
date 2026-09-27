@@ -1,0 +1,10 @@
+[Unit]
+Description=Delete expired encrypted HomeDatabase source files
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/homedatabase
+ExecStart=/usr/bin/docker compose --env-file infra/.env.domestic -f infra/compose.domestic.yml --profile maintenance run --rm retention
+TimeoutStartSec=30min

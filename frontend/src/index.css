@@ -1,0 +1,193 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* 主题色方案：RGB 通道值（供 tailwind 的 <alpha-value> 用法）。
+     由 src/components/theme.tsx 与 HTML 启动脚本通过 [data-theme] 切换。 */
+  :root {
+    --accent: 13 148 136; /* 青（默认） */
+    --accent-soft: 204 251 241;
+    --accent-faint: 240 253 250;
+    --accent-strong: 15 118 110;
+    --accent-ink: 17 94 89;
+  }
+  [data-theme="indigo"] {
+    --accent: 79 70 229; --accent-soft: 224 231 255; --accent-faint: 238 242 255;
+    --accent-strong: 67 56 202; --accent-ink: 55 48 163;
+  }
+  [data-theme="violet"] {
+    --accent: 124 58 237; --accent-soft: 237 233 254; --accent-faint: 245 243 255;
+    --accent-strong: 109 40 217; --accent-ink: 91 33 182;
+  }
+  [data-theme="rose"] {
+    --accent: 225 29 72; --accent-soft: 255 228 230; --accent-faint: 255 241 242;
+    --accent-strong: 190 18 60; --accent-ink: 159 18 57;
+  }
+  [data-theme="amber"] {
+    --accent: 217 119 6; --accent-soft: 254 243 199; --accent-faint: 255 251 235;
+    --accent-strong: 180 83 9; --accent-ink: 146 64 14;
+  }
+  [data-theme="slate"] {
+    --accent: 71 85 105; --accent-soft: 226 232 240; --accent-faint: 248 250 252;
+    --accent-strong: 51 65 85; --accent-ink: 30 41 59;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-slate-50 text-ink antialiased;
+    text-rendering: optimizeLegibility;
+    /* 极淡的背景层次，衬托玻璃卡片；主色光晕跟随主题 */
+    background-image:
+      radial-gradient(60rem 30rem at 85% -10%, rgb(var(--accent) / 0.06), transparent),
+      radial-gradient(50rem 28rem at -10% 110%, rgba(15, 23, 42, 0.05), transparent);
+    background-attachment: fixed;
+  }
+
+  /* 选区颜色跟随主题 */
+  ::selection {
+    background: rgb(var(--accent) / 0.16);
+  }
+
+  /* 全局焦点环：键盘可达且克制 */
+  :focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgb(var(--accent) / 0.28);
+    border-radius: 0.75rem;
+  }
+
+  /* 细滚动条（桌面端） */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(15, 23, 42, 0.14);
+    border-radius: 8px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(15, 23, 42, 0.24);
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@layer components {
+  /* 克制的玻璃：白底高透明 + 轻模糊 + 饱和度提升 + 顶部高光 + 细边 + 浅影 */
+  .glass {
+    @apply border border-white/60 bg-white/65 shadow-glass backdrop-blur-xl backdrop-saturate-150;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.7),
+      0 1px 2px rgba(15, 23, 42, 0.04),
+      0 8px 24px -12px rgba(15, 23, 42, 0.12);
+  }
+  .glass-strong {
+    @apply border border-white/70 bg-white/85 shadow-pop backdrop-blur-xl backdrop-saturate-150;
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      0 4px 6px -2px rgba(15, 23, 42, 0.05),
+      0 16px 40px -16px rgba(15, 23, 42, 0.18);
+  }
+  .hairline {
+    @apply border-slate-900/10;
+  }
+
+  /* 列表逐项进场：父级加 .stagger，子项用 style={{ "--stagger-i": i }} 标序号。
+     延迟 40ms/项，第 8 项封顶。放在 components 层，好让 utilities 层的
+     animate-collapse-out 等退出动画在同元素上覆盖它。 */
+  @media (prefers-reduced-motion: no-preference) {
+    .stagger > * {
+      animation: fade-up 250ms cubic-bezier(0.16, 1, 0.3, 1) both;
+      animation-delay: calc(min(var(--stagger-i, 0), 8) * 40ms);
+    }
+  }
+}
+
+/* ===== 动效关键帧：仅在系统未设置「减弱动态」时定义 =====
+   对应的 animate-* 工具类注册在 tailwind.config.ts 的 theme.extend.animation，
+   使用时一律搭配 motion-safe: 前缀，双保险。 */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  /* 底部抽屉滑入/滑出 */
+  @keyframes sheet-up {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+  @keyframes sheet-down {
+    from { transform: translateY(0); }
+    to { transform: translateY(100%); }
+  }
+  /* 徽标/选中态：轻微回弹（回弹感由弹性缓动函数提供） */
+  @keyframes pop {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  /* 页面层级方向感：进入更深层级从右侧滑入，返回浅层从左侧滑入 */
+  @keyframes slide-in-right {
+    from { opacity: 0; transform: translateX(24px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes slide-in-left {
+    from { opacity: 0; transform: translateX(-24px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  /* Tab 内容切换：交叉淡入，提示内容已换 */
+  @keyframes fade-swap {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  /* 数值变化强调：轻微放大 + 短暂变为强调色再恢复（末帧颜色缺省即回到元素本色） */
+  @keyframes value-pop {
+    0% { transform: scale(1); }
+    35% { transform: scale(1.06); color: rgb(var(--accent)); }
+    100% { transform: scale(1); }
+  }
+  /* 下拉弹出 */
+  @keyframes select-in {
+    from { opacity: 0; transform: scale(0.98) translateY(-2px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  @keyframes overlay-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes overlay-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+  }
+  /* 居中弹窗：与 dialog.tsx 的 -translate-x/y-1/2 配合，关键帧自带居中定位 */
+  @keyframes dialog-in {
+    from { opacity: 0; transform: translate(-50%, -48%) scale(0.97); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  }
+  @keyframes dialog-out {
+    from { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    to { opacity: 0; transform: translate(-50%, -48%) scale(0.97); }
+  }
+  /* 行/卡片收起消失：高度收起 + 淡出 + 轻微上移（max-height 方案，配 forwards） */
+  @keyframes collapse-out {
+    from {
+      max-height: 30rem; opacity: 1; transform: translateY(0);
+      overflow: hidden; pointer-events: none;
+    }
+    to {
+      max-height: 0; opacity: 0; transform: translateY(-4px);
+      margin-top: 0; padding-top: 0; padding-bottom: 0;
+      overflow: hidden; pointer-events: none;
+    }
+  }
+}
