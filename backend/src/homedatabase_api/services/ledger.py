@@ -1,17 +1,20 @@
 from __future__ import annotations
 
+import calendar
 from collections import defaultdict
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException, status
-from sqlalchemy import case, func, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from ..config import get_settings
-from ..models import Account, Category, EntryLine, Member, PeriodLock, Split, Transaction, utcnow
+from ..models import Account, Category, EntryLine, Member, Split, Transaction, utcnow
 from ..money import calculate_base_minor, require_safe_signed_minor
+from ..repositories.accounts import AccountRepository
+from ..repositories.ledger import LedgerRepository
 from ..schemas import NewTransactionInput, TransactionOut, TransactionUpdateInput
 from .audit import record_event
 from .locking import acquire_ledger_mutation_guard
@@ -22,7 +25,7 @@ from .permissions import (
     require_account_permission,
     transaction_has_hidden_accounts,
 )
-from .presenters import present_account, present_transaction
+from .presenters import present_account, present_transaction, present_transactions
 
 SHANGHAI = ZoneInfo("Asia/Shanghai")
 
@@ -34,21 +37,7 @@ def _normalise_datetime(value: datetime) -> datetime:
 
 
 def period_is_locked(db: Session, occurred_at: datetime) -> bool:
-    # SQLite persists UTC datetimes without their offset.  ORM-loaded values
-    # are restored by UTCDateTime, but keep this boundary deterministic for
-    # direct callers and test doubles as well.
-    if occurred_at.tzinfo is None:
-        occurred_at = occurred_at.replace(tzinfo=UTC)
-    local_day = occurred_at.astimezone(SHANGHAI).date()
-    return (
-        db.scalar(
-            select(func.count(PeriodLock.id)).where(
-                PeriodLock.starts_on <= local_day,
-                PeriodLock.ends_on >= local_day,
-            )
-        )
-        or 0
-    ) > 0
+    return LedgerRepository(db).period_is_locked(occurred_at)
 
 
 def _require_unlocked(db: Session, occurred_at: datetime) -> None:
@@ -192,31 +181,7 @@ def _active_refunds_for_category_sync(db: Session, transaction_id: str) -> list[
 
 
 def _account_balance(db: Session, account: Account) -> int:
-    signed_native_movement = db.scalar(
-        select(
-            func.coalesce(
-                func.sum(
-                    case(
-                        (EntryLine.debit_minor > 0, EntryLine.account_amount_minor),
-                        else_=-EntryLine.account_amount_minor,
-                    )
-                ),
-                0,
-            )
-        )
-        .join(Transaction, Transaction.id == EntryLine.transaction_id)
-        .where(
-            EntryLine.account_id == account.id,
-            Transaction.deleted_at.is_(None),
-        )
-    )
-    movement = int(signed_native_movement or 0)
-    if account.kind == "liability":
-        movement = -movement
-    return require_safe_signed_minor(
-        account.opening_balance_minor + movement,
-        detail=f"账户 {account.id} 的当前余额已超出安全范围",
-    )
+    return AccountRepository(db).compute_account_balance(account)
 
 
 def validate_projected_account_balances(
@@ -226,12 +191,11 @@ def validate_projected_account_balances(
     multiplier: int = 1,
 ) -> None:
     """Lock touched accounts and reject a write whose aggregate balance is unsafe."""
+    repo = AccountRepository(db)
     account_ids = sorted({line.account_id for line in lines if line.account_id is not None})
     if not account_ids:
         return
-    accounts = db.scalars(
-        select(Account).where(Account.id.in_(account_ids)).order_by(Account.id).with_for_update()
-    ).all()
+    accounts = repo.lock_accounts_ordered(account_ids)
     by_id = {account.id: account for account in accounts}
     if len(by_id) != len(account_ids):
         raise HTTPException(status_code=422, detail="分录关联账户不存在")
@@ -243,8 +207,9 @@ def validate_projected_account_balances(
         if by_id[line.account_id].kind == "liability":
             signed = -signed
         changes[line.account_id] += signed * multiplier
+    current_balances = repo.compute_balances_for_accounts(accounts)
     for account_id in account_ids:
-        current = _account_balance(db, by_id[account_id])
+        current = current_balances[account_id]
         require_safe_signed_minor(
             current + changes[account_id],
             detail=f"账户 {account_id} 入账后余额将超出安全范围",
@@ -252,32 +217,27 @@ def validate_projected_account_balances(
 
 
 def list_accounts(db: Session, member: Member):
-    accounts = db.scalars(
-        select(Account).where(Account.deleted_at.is_(None)).order_by(Account.name)
-    ).all()
-    result = []
-    for account in accounts:
-        if account_permission(db, member, account) is None:
-            continue
-        result.append(present_account(db, member, account, _account_balance(db, account)))
-    return result
+    repo = AccountRepository(db)
+    visible = [
+        account
+        for account in repo.list_active_accounts()
+        if account_permission(db, member, account) is not None
+    ]
+    balances = repo.compute_balances_for_accounts(visible)
+    return [present_account(db, member, account, balances[account.id]) for account in visible]
 
 
 def list_categories(db: Session, *, include_inactive: bool = False) -> list[Category]:
-    statement = select(Category)
-    if not include_inactive:
-        statement = statement.where(Category.active.is_(True))
-    return db.scalars(statement.order_by(Category.kind, Category.parent_id, Category.name)).all()
+    return LedgerRepository(db).list_categories(include_inactive=include_inactive)
 
 
-def _load_transactions(db: Session) -> list[Transaction]:
-    return db.scalars(
-        select(Transaction)
-        .where(Transaction.deleted_at.is_(None))
-        .options(selectinload(Transaction.lines))
-        .order_by(Transaction.occurred_at.desc(), Transaction.id.desc())
-        .limit(5000)
-    ).all()
+def _month_utc_bounds(month: str) -> tuple[datetime, datetime]:
+    year_str, month_str = month.split("-", 1)
+    year, month_num = int(year_str), int(month_str)
+    last_day = calendar.monthrange(year, month_num)[1]
+    starts_at = datetime.combine(date(year, month_num, 1), time.min, SHANGHAI).astimezone(UTC)
+    ends_at = datetime.combine(date(year, month_num, last_day), time.max, SHANGHAI).astimezone(UTC)
+    return starts_at, ends_at
 
 
 def list_transactions(
@@ -291,16 +251,22 @@ def list_transactions(
 ) -> list[TransactionOut]:
     if account_id:
         require_account_permission(db, member, account_id)
-    result: list[TransactionOut] = []
-    for transaction in _load_transactions(db):
+    starts_at: datetime | None = None
+    ends_at: datetime | None = None
+    if month:
+        starts_at, ends_at = _month_utc_bounds(month)
+
+    repo = LedgerRepository(db)
+    candidates = repo.list_transactions_filtered(
+        type_filter=type_filter,
+        account_id=account_id,
+        starts_at=starts_at,
+        ends_at=ends_at,
+        limit=5000,
+    )
+    visible_matched: list[Transaction] = []
+    for transaction in candidates:
         if not can_view_transaction(db, member, transaction):
-            continue
-        if type_filter and transaction.type != type_filter:
-            continue
-        if account_id and account_id not in {line.account_id for line in transaction.lines}:
-            continue
-        local_date = transaction.occurred_at.astimezone(SHANGHAI)
-        if month and local_date.strftime("%Y-%m") != month:
             continue
         if keyword:
             needle = keyword.casefold()
@@ -309,23 +275,17 @@ def list_transactions(
             visible_note = "" if partial else transaction.note
             if needle not in visible_payee.casefold() and needle not in visible_note.casefold():
                 continue
-        result.append(present_transaction(db, member, transaction))
-    return result
+        visible_matched.append(transaction)
+    return present_transactions(db, member, visible_matched)
 
 
 def list_recycled_transactions(db: Session, member: Member) -> list[TransactionOut]:
-    records = db.scalars(
-        select(Transaction)
-        .where(Transaction.deleted_at.is_not(None))
-        .options(selectinload(Transaction.lines))
-        .order_by(Transaction.deleted_at.desc())
-        .limit(500)
-    ).all()
-    return [
-        present_transaction(db, member, item)
-        for item in records
+    records = [
+        item
+        for item in LedgerRepository(db).list_recycled_transactions(limit=500)
         if can_view_transaction(db, member, item)
     ]
+    return present_transactions(db, member, records)
 
 
 def create_transaction(
@@ -467,14 +427,7 @@ def create_transaction(
 def get_transaction(
     db: Session, member: Member, transaction_id: str, *, for_update: bool = False
 ) -> Transaction:
-    statement = (
-        select(Transaction)
-        .where(Transaction.id == transaction_id, Transaction.deleted_at.is_(None))
-        .options(selectinload(Transaction.lines))
-    )
-    if for_update:
-        statement = statement.with_for_update()
-    transaction = db.scalar(statement)
+    transaction = LedgerRepository(db).get_active_transaction(transaction_id, for_update=for_update)
     if not transaction:
         raise HTTPException(status_code=404, detail="账目不存在")
     if not can_view_transaction(db, member, transaction):

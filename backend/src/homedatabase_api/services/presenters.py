@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -12,6 +14,7 @@ from ..models import (
     Split,
     Transaction,
 )
+from ..repositories.ledger import LedgerRepository
 from ..schemas import (
     AccountOut,
     BackupRecordOut,
@@ -46,8 +49,21 @@ def present_account(db: Session, member, account: Account, balance: int) -> Acco
     )
 
 
-def present_transaction(db: Session, member, transaction: Transaction) -> TransactionOut:
-    split_id = db.scalar(select(Split.id).where(Split.transaction_id == transaction.id))
+_UNSET = object()
+
+
+def present_transaction(
+    db: Session,
+    member,
+    transaction: Transaction,
+    *,
+    split_id_override: object = _UNSET,
+) -> TransactionOut:
+    split_id = (
+        db.scalar(select(Split.id).where(Split.transaction_id == transaction.id))
+        if split_id_override is _UNSET
+        else split_id_override
+    )
     if not can_view_transaction(db, member, transaction):
         raise ValueError("transaction is not visible")
     partial = transaction_has_hidden_accounts(db, member, transaction)
@@ -99,6 +115,27 @@ def present_transaction(db: Session, member, transaction: Transaction) -> Transa
         deletedAt=transaction.deleted_at,
         deletedBy=transaction.deleted_by,
     )
+
+
+def present_transactions(
+    db: Session,
+    member,
+    transactions: Sequence[Transaction],
+) -> list[TransactionOut]:
+    if not transactions:
+        return []
+    split_ids = LedgerRepository(db).list_split_ids_by_transaction_ids(
+        [item.id for item in transactions]
+    )
+    return [
+        present_transaction(
+            db,
+            member,
+            item,
+            split_id_override=split_ids.get(item.id),
+        )
+        for item in transactions
+    ]
 
 
 def present_candidate(candidate: ImportCandidate) -> ImportCandidateOut:

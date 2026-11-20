@@ -1,15 +1,12 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
-
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.orm import Session
 
 from ..config import Settings, get_settings
 from ..database import get_db
 from ..dependencies import get_current_member
-from ..models import LoginSession, Member
+from ..models import Member
 from ..schemas import (
     AuthOut,
     LoginInput,
@@ -20,16 +17,12 @@ from ..schemas import (
     PasskeyRegistrationFinishInput,
     WebAuthnCeremonyOut,
 )
-from ..security import hash_token, new_session_token, verify_password
+from ..services import auth as auth_service
 from ..services import passkeys as passkey_service
 from ..services.presenters import present_passkey
 from ..services.rate_limit import enforce_auth_rate_limit
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-
-def _member_out(member: Member) -> MemberOut:
-    return MemberOut.model_validate(member)
 
 
 def _start_session(
@@ -39,17 +32,12 @@ def _start_session(
     response: Response,
     settings: Settings,
 ) -> AuthOut:
-    token = new_session_token()
-    expires_at = datetime.now(UTC) + timedelta(seconds=settings.session_ttl_seconds)
-    db.add(
-        LoginSession(
-            member_id=member.id,
-            token_hash=hash_token(token),
-            expires_at=expires_at,
-            user_agent=request.headers.get("user-agent", "")[:300],
-        )
+    token, auth_out = auth_service.issue_login_session(
+        db,
+        member=member,
+        user_agent=request.headers.get("user-agent", ""),
+        settings=settings,
     )
-    db.commit()
     response.set_cookie(
         settings.session_cookie_name,
         token,
@@ -59,7 +47,7 @@ def _start_session(
         samesite="strict",
         path="/",
     )
-    return AuthOut(member=_member_out(member), expiresAt=expires_at)
+    return auth_out
 
 
 @router.post("/login", response_model=AuthOut)
@@ -71,11 +59,11 @@ def login(
     settings: Settings = Depends(get_settings),
 ) -> AuthOut:
     enforce_auth_rate_limit(request, payload.username, settings)
-    member = db.scalar(
-        select(Member).where(Member.username == payload.username, Member.active.is_(True))
+    member = auth_service.authenticate_password(
+        db,
+        username=payload.username,
+        password=payload.password,
     )
-    if not member or not verify_password(payload.password, member.password_hash):
-        raise HTTPException(status_code=401, detail="用户名或密码错误")
     return _start_session(db, member, request, response, settings)
 
 
@@ -137,7 +125,7 @@ def authentication_verify(
 
 @router.get("/me", response_model=MemberOut)
 def me(member: Member = Depends(get_current_member)) -> MemberOut:
-    return _member_out(member)
+    return auth_service.present_member(member)
 
 
 @router.post("/logout", status_code=204)
@@ -152,11 +140,5 @@ def logout(
     authorization = request.headers.get("authorization", "")
     if not token and authorization.lower().startswith("bearer "):
         token = authorization[7:].strip()
-    if token:
-        login_session = db.scalar(
-            select(LoginSession).where(LoginSession.token_hash == hash_token(token))
-        )
-        if login_session and login_session.revoked_at is None:
-            login_session.revoked_at = datetime.now(UTC)
-            db.commit()
+    auth_service.revoke_session_token(db, token)
     response.delete_cookie(settings.session_cookie_name, path="/")

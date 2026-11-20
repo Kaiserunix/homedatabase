@@ -383,6 +383,241 @@
         "title": "CandidateIdsInput",
         "type": "object"
       },
+      "CashflowRadarInput": {
+        "properties": {
+          "asOfDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asofdate"
+          },
+          "horizonDays": {
+            "default": 90,
+            "maximum": 365.0,
+            "minimum": 7.0,
+            "title": "Horizondays",
+            "type": "integer"
+          },
+          "lookbackDays": {
+            "default": 90,
+            "maximum": 365.0,
+            "minimum": 30.0,
+            "title": "Lookbackdays",
+            "type": "integer"
+          },
+          "minimumSafeBalanceCents": {
+            "default": 0,
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Minimumsafebalancecents",
+            "type": "integer"
+          },
+          "plannedEvents": {
+            "items": {
+              "$ref": "#/components/schemas/PlannedCashflowEventInput"
+            },
+            "maxItems": 50,
+            "title": "Plannedevents",
+            "type": "array"
+          },
+          "scope": {
+            "default": "all",
+            "enum": [
+              "all",
+              "personal",
+              "family"
+            ],
+            "title": "Scope",
+            "type": "string"
+          }
+        },
+        "title": "CashflowRadarInput",
+        "type": "object"
+      },
+      "CashflowRadarOut": {
+        "properties": {
+          "asOfDate": {
+            "format": "date",
+            "title": "Asofdate",
+            "type": "string"
+          },
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Assumptions",
+            "type": "array"
+          },
+          "dailyDiscretionaryExpenseCents": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Dailydiscretionaryexpensecents",
+            "type": "integer"
+          },
+          "excludedForeignAccountIds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Excludedforeignaccountids",
+            "type": "array"
+          },
+          "horizonDays": {
+            "title": "Horizondays",
+            "type": "integer"
+          },
+          "recurringCandidates": {
+            "items": {
+              "$ref": "#/components/schemas/RecurringCandidateOut"
+            },
+            "title": "Recurringcandidates",
+            "type": "array"
+          },
+          "riskAlerts": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Riskalerts",
+            "type": "array"
+          },
+          "scenarios": {
+            "items": {
+              "$ref": "#/components/schemas/CashflowScenarioOut"
+            },
+            "title": "Scenarios",
+            "type": "array"
+          },
+          "startingLiquidBalanceCents": {
+            "maximum": 9007199254740991.0,
+            "minimum": -9007199254740991.0,
+            "title": "Startingliquidbalancecents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asOfDate",
+          "horizonDays",
+          "startingLiquidBalanceCents",
+          "excludedForeignAccountIds",
+          "dailyDiscretionaryExpenseCents",
+          "recurringCandidates",
+          "scenarios",
+          "riskAlerts",
+          "assumptions"
+        ],
+        "title": "CashflowRadarOut",
+        "type": "object"
+      },
+      "CashflowScenarioOut": {
+        "properties": {
+          "breachesSafeBalance": {
+            "title": "Breachessafebalance",
+            "type": "boolean"
+          },
+          "endingBalanceCents": {
+            "maximum": 9007199254740991.0,
+            "minimum": -9007199254740991.0,
+            "title": "Endingbalancecents",
+            "type": "integer"
+          },
+          "lowestBalanceCents": {
+            "maximum": 9007199254740991.0,
+            "minimum": -9007199254740991.0,
+            "title": "Lowestbalancecents",
+            "type": "integer"
+          },
+          "scenario": {
+            "enum": [
+              "baseline",
+              "conservative",
+              "stress"
+            ],
+            "title": "Scenario",
+            "type": "string"
+          },
+          "tightestWeekStart": {
+            "format": "date",
+            "title": "Tightestweekstart",
+            "type": "string"
+          },
+          "weeklyBuckets": {
+            "items": {
+              "$ref": "#/components/schemas/CashflowWeekBucketOut"
+            },
+            "title": "Weeklybuckets",
+            "type": "array"
+          }
+        },
+        "required": [
+          "scenario",
+          "endingBalanceCents",
+          "lowestBalanceCents",
+          "tightestWeekStart",
+          "breachesSafeBalance",
+          "weeklyBuckets"
+        ],
+        "title": "CashflowScenarioOut",
+        "type": "object"
+      },
+      "CashflowWeekBucketOut": {
+        "properties": {
+          "closingBalanceCents": {
+            "maximum": 9007199254740991.0,
+            "minimum": -9007199254740991.0,
+            "title": "Closingbalancecents",
+            "type": "integer"
+          },
+          "endsOn": {
+            "format": "date",
+            "title": "Endson",
+            "type": "string"
+          },
+          "inflowCents": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Inflowcents",
+            "type": "integer"
+          },
+          "netCents": {
+            "maximum": 9007199254740991.0,
+            "minimum": -9007199254740991.0,
+            "title": "Netcents",
+            "type": "integer"
+          },
+          "outflowCents": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Outflowcents",
+            "type": "integer"
+          },
+          "startsOn": {
+            "format": "date",
+            "title": "Startson",
+            "type": "string"
+          },
+          "weekIndex": {
+            "minimum": 1.0,
+            "title": "Weekindex",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "weekIndex",
+          "startsOn",
+          "endsOn",
+          "inflowCents",
+          "outflowCents",
+          "netCents",
+          "closingBalanceCents"
+        ],
+        "title": "CashflowWeekBucketOut",
+        "type": "object"
+      },
       "CategoryCreateInput": {
         "properties": {
           "icon": {
@@ -528,6 +763,589 @@
           "expectedVersion"
         ],
         "title": "CategoryUpdateInput",
+        "type": "object"
+      },
+      "CfoAskInput": {
+        "properties": {
+          "accountId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accountid"
+          },
+          "asOfDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asofdate"
+          },
+          "largeExpenseThresholdCents": {
+            "default": 50000,
+            "exclusiveMinimum": 0.0,
+            "maximum": 9007199254740991.0,
+            "title": "Largeexpensethresholdcents",
+            "type": "integer"
+          },
+          "question": {
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          },
+          "scope": {
+            "anyOf": [
+              {
+                "enum": [
+                  "all",
+                  "personal",
+                  "family"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "title": "CfoAskInput",
+        "type": "object"
+      },
+      "CfoAskOut": {
+        "properties": {
+          "answer": {
+            "title": "Answer",
+            "type": "string"
+          },
+          "assumptions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Assumptions",
+            "type": "array"
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/CfoCitationOut"
+            },
+            "title": "Citations",
+            "type": "array"
+          },
+          "intent": {
+            "enum": [
+              "overview",
+              "spending_change",
+              "frequency_vs_ticket",
+              "financial_memory",
+              "large_expenses"
+            ],
+            "title": "Intent",
+            "type": "string"
+          },
+          "metrics": {
+            "$ref": "#/components/schemas/CfoMetricsOut"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          },
+          "resolvedQuery": {
+            "$ref": "#/components/schemas/CfoResolvedQueryOut"
+          },
+          "topChanges": {
+            "items": {
+              "$ref": "#/components/schemas/CfoDriverOut"
+            },
+            "title": "Topchanges",
+            "type": "array"
+          }
+        },
+        "required": [
+          "question",
+          "intent",
+          "provider",
+          "answer",
+          "assumptions",
+          "resolvedQuery",
+          "metrics",
+          "topChanges",
+          "citations"
+        ],
+        "title": "CfoAskOut",
+        "type": "object"
+      },
+      "CfoCapabilitiesOut": {
+        "properties": {
+          "cfoProvider": {
+            "title": "Cfoprovider",
+            "type": "string"
+          },
+          "externalLlmEnabled": {
+            "title": "Externalllmenabled",
+            "type": "boolean"
+          },
+          "ocrEnabled": {
+            "title": "Ocrenabled",
+            "type": "boolean"
+          },
+          "ocrProvider": {
+            "title": "Ocrprovider",
+            "type": "string"
+          },
+          "privacyBoundary": {
+            "title": "Privacyboundary",
+            "type": "string"
+          },
+          "supportedIntents": {
+            "items": {
+              "enum": [
+                "overview",
+                "spending_change",
+                "frequency_vs_ticket",
+                "financial_memory",
+                "large_expenses"
+              ],
+              "type": "string"
+            },
+            "title": "Supportedintents",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ocrEnabled",
+          "ocrProvider",
+          "cfoProvider",
+          "externalLlmEnabled",
+          "supportedIntents",
+          "privacyBoundary"
+        ],
+        "title": "CfoCapabilitiesOut",
+        "type": "object"
+      },
+      "CfoCitationOut": {
+        "properties": {
+          "amountCents": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 9007199254740991.0,
+            "title": "Amountcents",
+            "type": "integer"
+          },
+          "baseAmountCents": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 9007199254740991.0,
+            "title": "Baseamountcents",
+            "type": "integer"
+          },
+          "categoryId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoryid"
+          },
+          "categoryName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoryname"
+          },
+          "currency": {
+            "pattern": "^[A-Z]{3}$",
+            "title": "Currency",
+            "type": "string"
+          },
+          "date": {
+            "format": "date-time",
+            "title": "Date",
+            "type": "string"
+          },
+          "linkedRefundCents": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Linkedrefundcents",
+            "type": "integer"
+          },
+          "ownBurdenCents": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Ownburdencents",
+            "type": "integer"
+          },
+          "payee": {
+            "title": "Payee",
+            "type": "string"
+          },
+          "source": {
+            "enum": [
+              "manual",
+              "import"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "sourceFilename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sourcefilename"
+          },
+          "sourceRef": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sourceref"
+          },
+          "splitStatus": {
+            "enum": [
+              "none",
+              "open",
+              "settled",
+              "returned"
+            ],
+            "title": "Splitstatus",
+            "type": "string"
+          },
+          "transactionId": {
+            "title": "Transactionid",
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "expense",
+              "income",
+              "transfer",
+              "refund"
+            ],
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "transactionId",
+          "date",
+          "type",
+          "payee",
+          "categoryId",
+          "categoryName",
+          "currency",
+          "amountCents",
+          "baseAmountCents",
+          "linkedRefundCents",
+          "ownBurdenCents",
+          "splitStatus",
+          "source"
+        ],
+        "title": "CfoCitationOut",
+        "type": "object"
+      },
+      "CfoDriverOut": {
+        "properties": {
+          "currentCents": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Currentcents",
+            "type": "integer"
+          },
+          "deltaCents": {
+            "maximum": 9007199254740991.0,
+            "minimum": -9007199254740991.0,
+            "title": "Deltacents",
+            "type": "integer"
+          },
+          "kind": {
+            "enum": [
+              "category",
+              "payee"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "previousCents": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Previouscents",
+            "type": "integer"
+          },
+          "transactionCount": {
+            "minimum": 0.0,
+            "title": "Transactioncount",
+            "type": "integer"
+          },
+          "transactionIds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Transactionids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "label",
+          "kind",
+          "currentCents",
+          "previousCents",
+          "deltaCents",
+          "transactionCount",
+          "transactionIds"
+        ],
+        "title": "CfoDriverOut",
+        "type": "object"
+      },
+      "CfoMetricsOut": {
+        "properties": {
+          "averageExpenseCents": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Averageexpensecents",
+            "type": "integer"
+          },
+          "expenseCount": {
+            "minimum": 0.0,
+            "title": "Expensecount",
+            "type": "integer"
+          },
+          "grossExpenseCents": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Grossexpensecents",
+            "type": "integer"
+          },
+          "incomeCents": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Incomecents",
+            "type": "integer"
+          },
+          "linkedRefundCents": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Linkedrefundcents",
+            "type": "integer"
+          },
+          "netCashflowCents": {
+            "maximum": 9007199254740991.0,
+            "minimum": -9007199254740991.0,
+            "title": "Netcashflowcents",
+            "type": "integer"
+          },
+          "netExpenseCents": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Netexpensecents",
+            "type": "integer"
+          },
+          "netExpenseDeltaCents": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991.0,
+                "minimum": -9007199254740991.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Netexpensedeltacents"
+          },
+          "ownBurdenCents": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Ownburdencents",
+            "type": "integer"
+          },
+          "previousAverageExpenseCents": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previousaverageexpensecents"
+          },
+          "previousExpenseCount": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previousexpensecount"
+          },
+          "previousNetExpenseCents": {
+            "anyOf": [
+              {
+                "maximum": 9007199254740991.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previousnetexpensecents"
+          },
+          "primaryGrowthDriver": {
+            "enum": [
+              "frequency",
+              "ticket_size",
+              "mixed",
+              "decreased",
+              "flat",
+              "none"
+            ],
+            "title": "Primarygrowthdriver",
+            "type": "string"
+          },
+          "splitReimbursedCents": {
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Splitreimbursedcents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "grossExpenseCents",
+          "linkedRefundCents",
+          "netExpenseCents",
+          "splitReimbursedCents",
+          "ownBurdenCents",
+          "incomeCents",
+          "netCashflowCents",
+          "expenseCount",
+          "averageExpenseCents",
+          "primaryGrowthDriver"
+        ],
+        "title": "CfoMetricsOut",
+        "type": "object"
+      },
+      "CfoResolvedQueryOut": {
+        "properties": {
+          "accountIds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Accountids",
+            "type": "array"
+          },
+          "categoryIds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Categoryids",
+            "type": "array"
+          },
+          "comparisonEndsOn": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comparisonendson"
+          },
+          "comparisonStartsOn": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comparisonstartson"
+          },
+          "endsOn": {
+            "format": "date",
+            "title": "Endson",
+            "type": "string"
+          },
+          "keyword": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Keyword"
+          },
+          "scope": {
+            "enum": [
+              "all",
+              "personal",
+              "family"
+            ],
+            "title": "Scope",
+            "type": "string"
+          },
+          "startsOn": {
+            "format": "date",
+            "title": "Startson",
+            "type": "string"
+          }
+        },
+        "required": [
+          "startsOn",
+          "endsOn",
+          "scope",
+          "accountIds",
+          "categoryIds"
+        ],
+        "title": "CfoResolvedQueryOut",
         "type": "object"
       },
       "DeleteInput": {
@@ -811,7 +1629,6 @@
           "confidence": {
             "anyOf": [
               {
-                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
                 "type": "string"
               },
               {
@@ -852,7 +1669,6 @@
           "fxRate": {
             "anyOf": [
               {
-                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,21}0*$)\\d{0,10}\\.\\d{0,10}0*$)",
                 "type": "string"
               },
               {
@@ -979,6 +1795,21 @@
             ],
             "title": "Date"
           },
+          "direction": {
+            "anyOf": [
+              {
+                "enum": [
+                  "expense",
+                  "income"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direction"
+          },
           "expectedVersion": {
             "minimum": 1.0,
             "title": "Expectedversion",
@@ -991,7 +1822,6 @@
                 "type": "number"
               },
               {
-                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,21}0*$)\\d{0,10}\\.\\d{0,10}0*$)",
                 "type": "string"
               },
               {
@@ -1280,7 +2110,6 @@
                 "type": "number"
               },
               {
-                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,21}0*$)\\d{0,10}\\.\\d{0,10}0*$)",
                 "type": "string"
               },
               {
@@ -1498,6 +2327,106 @@
           "createdAt"
         ],
         "title": "PeriodLockOut",
+        "type": "object"
+      },
+      "PlannedCashflowEventInput": {
+        "properties": {
+          "amountCents": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 9007199254740991.0,
+            "title": "Amountcents",
+            "type": "integer"
+          },
+          "direction": {
+            "enum": [
+              "expense",
+              "income"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "occursOn": {
+            "format": "date",
+            "title": "Occurson",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title",
+          "direction",
+          "amountCents",
+          "occursOn"
+        ],
+        "title": "PlannedCashflowEventInput",
+        "type": "object"
+      },
+      "RecurringCandidateOut": {
+        "properties": {
+          "cadence": {
+            "enum": [
+              "weekly",
+              "monthly"
+            ],
+            "title": "Cadence",
+            "type": "string"
+          },
+          "confidence": {
+            "title": "Confidence",
+            "type": "string"
+          },
+          "direction": {
+            "enum": [
+              "expense",
+              "income"
+            ],
+            "title": "Direction",
+            "type": "string"
+          },
+          "evidenceTransactionIds": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Evidencetransactionids",
+            "type": "array"
+          },
+          "nextExpectedDate": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Nextexpecteddate"
+          },
+          "payee": {
+            "title": "Payee",
+            "type": "string"
+          },
+          "typicalAmountCents": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 9007199254740991.0,
+            "title": "Typicalamountcents",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "payee",
+          "direction",
+          "cadence",
+          "typicalAmountCents",
+          "confidence",
+          "evidenceTransactionIds"
+        ],
+        "title": "RecurringCandidateOut",
         "type": "object"
       },
       "ReportTierOut": {
@@ -1893,7 +2822,6 @@
           "fxRate": {
             "anyOf": [
               {
-                "pattern": "^(?!^[-+.]*$)[+-]?0*(?:\\d{0,10}|(?=[\\d.]{1,21}0*$)\\d{0,10}\\.\\d{0,10}0*$)",
                 "type": "string"
               },
               {
@@ -3113,6 +4041,151 @@
         "summary": "Update Category",
         "tags": [
           "ledger"
+        ]
+      }
+    },
+    "/api/cfo/ask": {
+      "post": {
+        "operationId": "ask_api_cfo_ask_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CfoAskInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CfoAskOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "未登录或会话已过期"
+          },
+          "403": {
+            "description": "已登录但权限不足"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "BearerToken": []
+          }
+        ],
+        "summary": "Ask",
+        "tags": [
+          "cfo"
+        ]
+      }
+    },
+    "/api/cfo/capabilities": {
+      "get": {
+        "operationId": "capabilities_api_cfo_capabilities_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CfoCapabilitiesOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "未登录或会话已过期"
+          },
+          "403": {
+            "description": "已登录但权限不足"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "BearerToken": []
+          }
+        ],
+        "summary": "Capabilities",
+        "tags": [
+          "cfo"
+        ]
+      }
+    },
+    "/api/cfo/cashflow-radar": {
+      "post": {
+        "operationId": "cashflow_radar_api_cfo_cashflow_radar_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CashflowRadarInput"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashflowRadarOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "description": "未登录或会话已过期"
+          },
+          "403": {
+            "description": "已登录但权限不足"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "SessionCookie": []
+          },
+          {
+            "BearerToken": []
+          }
+        ],
+        "summary": "Cashflow Radar",
+        "tags": [
+          "cfo"
         ]
       }
     },

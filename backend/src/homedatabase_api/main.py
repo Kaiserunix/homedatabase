@@ -12,7 +12,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from . import __version__
 from .config import get_settings
 from .database import create_schema, get_session_factory
-from .routers import auth, imports, ledger, splits, system
+from .routers import auth, cfo, imports, ledger, splits, system
 from .seed import seed_demo_data
 
 
@@ -98,7 +98,14 @@ def create_app() -> FastAPI:
                 )
         return response
 
-    for router in (auth.router, ledger.router, imports.router, splits.router, system.router):
+    for router in (
+        auth.router,
+        ledger.router,
+        imports.router,
+        splits.router,
+        cfo.router,
+        system.router,
+    ):
         app.include_router(router, prefix=settings.api_prefix)
 
     def documented_openapi():

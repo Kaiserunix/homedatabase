@@ -21,6 +21,7 @@ from ..schemas import (
     TransactionRestoreInput,
     TransactionUpdateInput,
 )
+from ..services import catalog as catalog_service
 from ..services import ledger as service
 from ..services.presenters import present_transaction
 
@@ -38,9 +39,7 @@ def create_account(
     db: Session = Depends(get_db),
     member: Member = Depends(get_current_member),
 ):
-    from ..services.catalog import create_account as create_account_service
-
-    return create_account_service(db, member, payload)
+    return catalog_service.create_account(db, member, payload)
 
 
 @router.patch("/accounts/{account_id}", response_model=AccountOut)
@@ -50,9 +49,7 @@ def update_account(
     db: Session = Depends(get_db),
     member: Member = Depends(get_current_member),
 ):
-    from ..services.catalog import update_account as update_account_service
-
-    return update_account_service(db, member, account_id, payload)
+    return catalog_service.update_account(db, member, account_id, payload)
 
 
 @router.get("/accounts/{account_id}/grants", response_model=list[AccountGrantOut])
@@ -61,9 +58,7 @@ def account_grants(
     db: Session = Depends(get_db),
     member: Member = Depends(get_current_member),
 ):
-    from ..services.catalog import list_grants
-
-    return list_grants(db, member, account_id)
+    return catalog_service.list_grants(db, member, account_id)
 
 
 @router.put("/accounts/{account_id}/grants/{member_id}", response_model=AccountGrantOut)
@@ -74,9 +69,7 @@ def set_account_grant(
     db: Session = Depends(get_db),
     member: Member = Depends(get_current_member),
 ):
-    from ..services.catalog import set_grant
-
-    return set_grant(db, member, account_id, member_id, payload.permission)
+    return catalog_service.set_grant(db, member, account_id, member_id, payload.permission)
 
 
 @router.delete("/accounts/{account_id}/grants/{member_id}", status_code=204)
@@ -86,9 +79,7 @@ def delete_account_grant(
     db: Session = Depends(get_db),
     member: Member = Depends(get_current_member),
 ) -> Response:
-    from ..services.catalog import delete_grant
-
-    delete_grant(db, member, account_id, member_id)
+    catalog_service.delete_grant(db, member, account_id, member_id)
     return Response(status_code=204)
 
 
@@ -112,10 +103,8 @@ def create_category(
     db: Session = Depends(get_db),
     member: Member = Depends(get_current_member),
 ):
-    from ..services.catalog import create_category as create_category_service
-
     require_admin(member)
-    return create_category_service(db, member, payload)
+    return catalog_service.create_category(db, member, payload)
 
 
 @router.patch("/categories/{category_id}", response_model=CategoryOut)
@@ -125,10 +114,8 @@ def update_category(
     db: Session = Depends(get_db),
     member: Member = Depends(get_current_member),
 ):
-    from ..services.catalog import update_category as update_category_service
-
     require_admin(member)
-    return update_category_service(db, member, category_id, payload)
+    return catalog_service.update_category(db, member, category_id, payload)
 
 
 @router.get("/transactions", response_model=list[TransactionOut])
