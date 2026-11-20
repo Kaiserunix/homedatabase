@@ -196,7 +196,7 @@ const candidate = (
   id, date, payee, amountCents, suggestedCategoryId,
   direction: "expense", currency: "CNY", status: "pending",
   duplicateOfTxnId: null, originalCategory: null, targetAccountId: "a-alipay",
-  validationStatus: "valid", confidence: "high", version: 1,
+  validationStatus: "valid", confidence: "0.95", version: 1,
   ...overrides,
 });
 
@@ -235,11 +235,11 @@ export const importBatches: ImportBatch[] = [
       candidate("cd-2", d(26, "09:05"), "地铁", 6_00, "c-transport", { originalCategory: "交通出行" }),
       candidate("cd-3", d(29, "12:05"), "盒马鲜生", 326_40, "c-grocery", { duplicateOfTxnId: "t-002", originalCategory: "商超购物", validationStatus: "exact_duplicate" }),
       candidate("cd-4", d(30, "08:15"), "滴滴出行", 38_50, "c-transport-taxi", { duplicateOfTxnId: "t-004", originalCategory: "交通出行", validationStatus: "exact_duplicate" }),
-      candidate("cd-5", d(31, "13:45"), "瑞幸咖啡", 19_90, "c-food", { originalCategory: "餐饮美食", confidence: "medium" }),
-      candidate("cd-6", d(1, "18:00"), "同事转账", 120_00, "c-other-in", { direction: "income", originalCategory: "转账", confidence: "low" }),
+      candidate("cd-5", d(31, "13:45"), "瑞幸咖啡", 19_90, "c-food", { originalCategory: "餐饮美食", confidence: "0.78" }),
+      candidate("cd-6", d(1, "18:00"), "同事转账", 120_00, "c-other-in", { direction: "income", originalCategory: "转账", confidence: "0.45" }),
       // 外币候选：后端无法确定汇率，需人工补 fxRate 与 baseAmountCents 后才可确认
       candidate("cd-7", d(1, "21:40"), "Amazon US", 15_99, "c-other", {
-        currency: "USD", originalCategory: "Shopping", confidence: "medium",
+        currency: "USD", originalCategory: "Shopping", confidence: "0.78",
         validationStatus: "needs_fx_review", fxRate: null, baseAmountCents: null,
       }),
     ],

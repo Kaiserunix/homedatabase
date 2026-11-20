@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:budget": "node scripts/check-budget.mjs",
+    "test:contract-drift": "node scripts/validate-contract-drift.mjs",
     "test:types": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.test.json",
     "api:gen": "openapi-typescript ../openapi.yaml -o src/api/schema.gen.ts"
   },
