@@ -1,0 +1,37 @@
+{
+  "transactions": [
+    {
+      "occurredAt": "2026-09-05T12:15:00+08:00",
+      "payee": "示例家庭餐馆",
+      "direction": "expense",
+      "amount": "68.50",
+      "currency": "CNY",
+      "category": "餐饮",
+      "sourceRef": "page-001#row-1",
+      "confidence": 0.96
+    },
+    {
+      "occurredAt": "2026-09-05T19:30:00+08:00",
+      "payee": "示例社区生鲜店",
+      "direction": "expense",
+      "amount": "43.20",
+      "currency": "CNY",
+      "category": "买菜超市",
+      "sourceRef": "page-001#row-2",
+      "confidence": 0.91
+    },
+    {
+      "occurredAt": "2026-09-06T00:00:00+08:00",
+      "payee": "示例书店",
+      "direction": "expense",
+      "amount": "55.00",
+      "currency": "CNY",
+      "category": null,
+      "sourceRef": "page-002#row-1",
+      "confidence": 0.78
+    }
+  ],
+  "warnings": [
+    "page-002#row-1 仅打印日期未打印具体时间，已按 00:00:00+08:00 记录；币种印刷不清晰，已按 CNY 填写请人工复核"
+  ]
+}

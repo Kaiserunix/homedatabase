@@ -1,0 +1,89 @@
+name: infra-ci
+
+on:
+  push:
+    paths:
+      - "infra/**"
+      - "examples/**"
+      - ".github/workflows/infra-ci.yml"
+      - "backend/Dockerfile"
+      - "frontend/Dockerfile"
+      - "frontend/Caddyfile"
+  pull_request:
+    paths:
+      - "infra/**"
+      - "examples/**"
+      - ".github/workflows/infra-ci.yml"
+      - "backend/Dockerfile"
+      - "frontend/Dockerfile"
+      - "frontend/Caddyfile"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  validate-infra:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - run: uv python install 3.13
+      - run: uv sync --locked --project backend --no-dev --python 3.13
+      - name: Validate YAML, env parity, security invariants, systemd, and backend fixture parsing
+        run: |
+          uv run --project backend --with pyyaml python infra/scripts/validate_infra.py --strict --verify-backend-parsers
+          uv run --project backend python backend/scripts/check_public_demo.py
+      - name: Validate launcher shell and PowerShell script syntax
+        run: |
+          bash -n infra/scripts/up.sh
+          pwsh -NoProfile -Command '
+            $errors = $null
+            [void][System.Management.Automation.Language.Parser]::ParseFile("infra/scripts/up.ps1", [ref]$null, [ref]$errors)
+            if ($errors.Count -gt 0) {
+              $errors | ForEach-Object { Write-Error $_.Message }
+              exit 1
+            }
+          '
+      - name: Test env generation and Compose configs across all profiles
+        run: |
+          python3 infra/scripts/init_env.py --mode local --output "$RUNNER_TEMP/local.env"
+          python3 infra/scripts/init_env.py --mode local --check "$RUNNER_TEMP/local.env"
+
+          python3 infra/scripts/init_env.py --mode production --host finance.example.org --output "$RUNNER_TEMP/prod.env"
+          python3 infra/scripts/init_env.py --mode production --check "$RUNNER_TEMP/prod.env"
+
+          python3 infra/scripts/init_env.py --mode domestic --host finance.example.org --output "$RUNNER_TEMP/domestic.env"
+          python3 infra/scripts/init_env.py --mode domestic --check "$RUNNER_TEMP/domestic.env"
+
+          python3 infra/scripts/init_env.py --mode overseas --redis-url "redis://:testpass@10.88.0.1:6379/0" --output "$RUNNER_TEMP/overseas.env"
+          python3 infra/scripts/init_env.py --mode overseas --check "$RUNNER_TEMP/overseas.env"
+
+          docker compose --env-file "$RUNNER_TEMP/local.env" -f infra/compose.yml config -q
+          docker compose --env-file "$RUNNER_TEMP/local.env" -f infra/compose.yml --profile ai-ocr config -q
+          docker compose --env-file "$RUNNER_TEMP/local.env" -f infra/compose.yml --profile ocr config -q
+          docker compose --env-file "$RUNNER_TEMP/local.env" -f infra/compose.yml --profile maintenance config -q
+          docker compose --env-file "$RUNNER_TEMP/prod.env" -f infra/compose.yml -f infra/compose.tls.yml config -q
+
+          docker compose --env-file "$RUNNER_TEMP/domestic.env" -f infra/compose.domestic.yml config -q
+          docker compose --env-file "$RUNNER_TEMP/domestic.env" -f infra/compose.domestic.yml --profile ocr config -q
+          docker compose --env-file "$RUNNER_TEMP/domestic.env" -f infra/compose.domestic.yml --profile maintenance config -q
+          docker compose --env-file "$RUNNER_TEMP/overseas.env" -f infra/compose.overseas-worker.yml config -q
+
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: validate-infra
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build core and optional OCR Compose images
+        run: |
+          docker compose --env-file infra/.env.example -f infra/compose.yml --profile ai-ocr build api web ocr-runner

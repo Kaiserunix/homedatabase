@@ -28,7 +28,7 @@ x-app-environment: &app-environment
   HOMEDATABASE_OCR_MAX_IMAGE_PIXELS: ${HOMEDATABASE_OCR_MAX_IMAGE_PIXELS:-20000000}
   HOMEDATABASE_BACKUP_DIR: /var/lib/homedatabase/backups
   HOMEDATABASE_BACKUP_ENCRYPTION_KEY: ${HOMEDATABASE_BACKUP_ENCRYPTION_KEY:?set HOMEDATABASE_BACKUP_ENCRYPTION_KEY}
-  HOMEDATABASE_BACKUP_LOCATION_KIND: tencent
+  HOMEDATABASE_BACKUP_LOCATION_KIND: ${HOMEDATABASE_BACKUP_LOCATION_KIND:-tencent}
   HOMEDATABASE_BACKUP_KEEP_HOURLY: ${HOMEDATABASE_BACKUP_KEEP_HOURLY:-48}
   HOMEDATABASE_BACKUP_KEEP_DAILY: ${HOMEDATABASE_BACKUP_KEEP_DAILY:-30}
   HOMEDATABASE_BACKUP_KEEP_MONTHLY: ${HOMEDATABASE_BACKUP_KEEP_MONTHLY:-12}
@@ -112,6 +112,7 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile
+      target: runtime
     command: ["alembic", "-c", "/app/backend/alembic.ini", "upgrade", "head"]
     environment: *app-environment
     depends_on:
@@ -136,6 +137,7 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile
+      target: runtime
     restart: unless-stopped
     command:
       - uvicorn
@@ -151,6 +153,8 @@ services:
       - "*"
     environment: *app-environment
     depends_on:
+      postgres:
+        condition: service_healthy
       migrate:
         condition: service_completed_successfully
       redis:
@@ -164,8 +168,22 @@ services:
     ports:
       - target: 8000
         published: "${HOMEDATABASE_API_PORT:-8000}"
-        host_ip: 127.0.0.1
+        host_ip: ${HOMEDATABASE_API_BIND:-127.0.0.1}
         protocol: tcp
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import os, urllib.request;
+          host=os.environ.get('HOMEDATABASE_WEBAUTHN_RP_ID', 'localhost');
+          req=urllib.request.Request('http://127.0.0.1:8000/api/health', headers={'Host': host});
+          urllib.request.urlopen(req, timeout=4).read()
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
     read_only: true
     tmpfs:
       - /tmp:size=256m,mode=1777
@@ -222,10 +240,28 @@ services:
       - no-new-privileges:true
     stop_grace_period: 10m
     # The shared runtime image probes the API port by default; a Celery worker
-    # does not listen on 8000, so keeping that inherited probe would report a
-    # healthy worker as unhealthy. Worker liveness is verified with Celery ping.
+    # does not listen on 8000. Check the worker process in /proc without
+    # spawning Celery or Redis roundtrips; broker roundtrips remain via Celery ping.
     healthcheck:
-      disable: true
+      test:
+        - CMD
+        - python
+        - -c
+        - |
+          import pathlib
+          found = False
+          for p in pathlib.Path('/proc').glob('[0-9]*/cmdline'):
+              try:
+                  if b'celery' in p.read_bytes():
+                      found = True
+                      break
+              except OSError:
+                  continue
+          raise SystemExit(0 if found else 1)
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   ocr-runner:
     profiles: ["ocr"]
@@ -250,6 +286,29 @@ services:
       - codex_auth:/home/homedatabase/.codex
     networks:
       - ocr_egress
+    healthcheck:
+      test:
+        - CMD
+        - python3
+        - -c
+        - |
+          import os, pathlib
+          jobs = pathlib.Path(os.environ.get('HOMEDATABASE_OCR_JOBS_DIR', '/var/lib/homedatabase/ocr-jobs'))
+          if not jobs.is_dir():
+              raise SystemExit(1)
+          found = False
+          for p in pathlib.Path('/proc').glob('[0-9]*/cmdline'):
+              try:
+                  if b'homedatabase_api.ocr_runner' in p.read_bytes():
+                      found = True
+                      break
+              except OSError:
+                  continue
+          raise SystemExit(0 if found else 1)
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     read_only: true
     tmpfs:
       - /tmp:size=64m,mode=1777
@@ -291,6 +350,12 @@ services:
       - target: 443
         published: "${HOMEDATABASE_HTTPS_PORT:-443}"
         protocol: udp
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/config/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     mem_limit: 128m
     mem_reservation: 32m
     cpus: 0.25
@@ -302,6 +367,7 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile
+      target: runtime
     profiles: ["maintenance"]
     command: ["homedatabase-backup"]
     environment: *app-environment
@@ -329,6 +395,7 @@ services:
     build:
       context: ../backend
       dockerfile: Dockerfile
+      target: runtime
     profiles: ["maintenance"]
     command: ["homedatabase-retention"]
     environment: *app-environment

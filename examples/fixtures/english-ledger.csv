@@ -1,0 +1,5 @@
+date,payee,type,amount,currency,category
+2026-09-01 09:00:00,Demo Employer Payroll,income,6000.00,CNY,工资
+2026-09-02 12:30:00,Demo Corner Cafe,expense,28.50,CNY,餐饮
+2026-09-03 18:15:00,Demo Fresh Market,expense,142.30,CNY,买菜超市
+2026-09-04 08:45:00,Demo Metro Transit,expense,6.00,CNY,交通
