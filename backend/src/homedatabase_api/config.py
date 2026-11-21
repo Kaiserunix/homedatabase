@@ -61,6 +61,10 @@ class Settings(BaseSettings):
     source_max_rows: int = 50_000
     source_max_uncompressed_bytes: int = 100 * 1024 * 1024
     ocr_enabled: bool = False
+    ocr_provider: Literal["codex-cli", "openai-vision"] = "codex-cli"
+    ocr_api_base_url: str | None = None
+    ocr_api_key: str | None = None
+    ocr_model: str = "gpt-4.1-mini"
     ocr_jobs_dir: Path = Path("backend/data/ocr-jobs")
     ocr_timeout_seconds: int = Field(default=600, ge=30, le=1800)
     # The total document limit is separate from the number of pages sent to a
@@ -74,6 +78,11 @@ class Settings(BaseSettings):
     ocr_max_image_pixels: int = Field(default=20_000_000, ge=1_000_000)
     ocr_runner_poll_seconds: float = Field(default=0.5, ge=0.1, le=10)
     ocr_job_stale_seconds: int = Field(default=3600, ge=600)
+    cfo_provider: Literal["deterministic-local", "openai-compatible"] = "deterministic-local"
+    cfo_api_base_url: str | None = None
+    cfo_api_key: str | None = None
+    cfo_model: str = "gpt-4.1-mini"
+    cfo_timeout_seconds: int = Field(default=20, ge=3, le=120)
     backup_dir: Path = Path("backend/data/backups")
     backup_encryption_key: str | None = None
     backup_location_kind: Literal["tencent", "local", "overseas"] = "tencent"
@@ -114,6 +123,18 @@ class Settings(BaseSettings):
             failures.append("production requires HOMEDATABASE_SOURCE_ENCRYPTION_KEY")
         if not self.backup_encryption_key:
             failures.append("production requires HOMEDATABASE_BACKUP_ENCRYPTION_KEY")
+        if self.ocr_enabled and self.ocr_provider == "openai-vision":
+            if not self.ocr_api_base_url or not self.ocr_api_base_url.startswith("https://"):
+                failures.append("production openai-vision OCR requires HTTPS ocr_api_base_url")
+            if not self.ocr_api_key:
+                failures.append("production openai-vision OCR requires HOMEDATABASE_OCR_API_KEY")
+        if self.cfo_provider == "openai-compatible":
+            if not self.cfo_api_base_url or not self.cfo_api_base_url.startswith("https://"):
+                failures.append("production openai-compatible CFO requires HTTPS cfo_api_base_url")
+            if not self.cfo_api_key:
+                failures.append(
+                    "production openai-compatible CFO requires HOMEDATABASE_CFO_API_KEY"
+                )
         if failures:
             raise ValueError("; ".join(failures))
         return self

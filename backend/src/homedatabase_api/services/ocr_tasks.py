@@ -20,6 +20,7 @@ from pypdfium2 import PdfDocument
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+from ..ai.bill_parser import BillOcrChunkRequest, get_ocr_provider
 from ..celery_app import celery_app
 from ..config import Settings, get_settings
 from ..database import get_session_factory
@@ -27,7 +28,7 @@ from ..models import ImportBatch, Member, SourceFile
 from ..ocr_contract import OCR_CONTRACT_VERSION
 from .audit import record_event
 from .import_parsers import ParseOutcome
-from .ocr_results import OcrResultError, parse_ocr_result
+from .ocr_results import OcrResultError
 from .source_storage import decrypt_source_file
 
 logger = logging.getLogger(__name__)
@@ -232,7 +233,13 @@ def _wait_for_result(job_dir: Path, settings: Settings) -> Path:
     raise OcrJobError("等待 Codex OCR 结果超时")
 
 
-def _persist_result(snapshot: _SourceSnapshot, outcome, settings: Settings) -> dict[str, object]:
+def _persist_result(
+    snapshot: _SourceSnapshot,
+    outcome,
+    settings: Settings,
+    *,
+    provider_id: str = "codex-cli",
+) -> dict[str, object]:
     # Import lazily to avoid a module cycle: upload enqueueing imports this task
     # module only after the upload transaction has committed.
     from .imports import _category_lookup, _ingest_parse_outcome, _refresh_batch_status
@@ -273,7 +280,7 @@ def _persist_result(snapshot: _SourceSnapshot, outcome, settings: Settings) -> d
             "source_file",
             source_file.id,
             after={
-                "provider": "codex-cli",
+                "provider": provider_id,
                 "record_count": source_file.record_count,
                 "candidate_count": source_file.candidate_count,
                 "rejected_count": source_file.rejected_count,
@@ -285,6 +292,24 @@ def _persist_result(snapshot: _SourceSnapshot, outcome, settings: Settings) -> d
             "sourceFileId": source_file.id,
             "candidateCount": source_file.candidate_count,
         }
+
+
+def _render_chunk_pages(
+    chunk: BillOcrChunkRequest,
+    payload: bytes,
+    target_dir: Path,
+    settings: Settings,
+) -> list[Path]:
+    suffix = Path(chunk.filename).suffix.casefold()
+    if suffix == ".pdf":
+        return _render_pdf(
+            payload,
+            target_dir,
+            settings,
+            page_start=chunk.page_start,
+            page_end=chunk.page_end,
+        )
+    return _render_image(payload, target_dir, settings)
 
 
 def process_ocr_source_file(
@@ -313,28 +338,39 @@ def process_ocr_source_file(
         page_count = 1
         ranges = [(0, 1)]
 
+    provider = get_ocr_provider(
+        settings,
+        prepare_job_fn=lambda chunk, raw, cfg, *, page_start, page_end: _prepare_job(
+            snapshot,
+            raw,
+            cfg,
+            page_start=page_start,
+            page_end=page_end,
+        ),
+        wait_for_result_fn=_wait_for_result,
+        render_pages_fn=_render_chunk_pages,
+    )
+
     outcomes: list[ParseOutcome] = []
     total_rows = 0
     for page_start, page_end in ranges:
-        job_dir = _prepare_job(
-            snapshot,
-            payload,
-            settings,
+        chunk_request = BillOcrChunkRequest(
+            source_file_id=snapshot.source_file_id,
+            batch_id=snapshot.batch_id,
+            filename=snapshot.filename,
+            encrypted_path=snapshot.encrypted_path,
             page_start=page_start,
             page_end=page_end,
         )
-        try:
-            result_path = _wait_for_result(job_dir, settings)
-            outcome = parse_ocr_result(
-                result_path,
-                max_transactions=settings.ocr_max_transactions,
-            )
-            total_rows += len(outcome.rows)
-            if total_rows > settings.ocr_max_transactions:
-                raise OcrResultError("OCR 返回的交易总条数超过批次限制")
-            outcomes.append(outcome)
-        finally:
-            shutil.rmtree(job_dir, ignore_errors=True)
+        outcome = provider.extract_chunk(
+            chunk=chunk_request,
+            payload=payload,
+            settings=settings,
+        )
+        total_rows += len(outcome.rows)
+        if total_rows > settings.ocr_max_transactions:
+            raise OcrResultError("OCR 返回的交易总条数超过批次限制")
+        outcomes.append(outcome)
 
     if len(outcomes) == 1:
         combined = outcomes[0]
@@ -344,7 +380,7 @@ def process_ocr_source_file(
         rejected = len(rows) - valid
         warning_count = sum(outcome.warning_count for outcome in outcomes)
         message = (
-            f"Codex OCR 分 {len(outcomes)} 批识别 {page_count} 页、{len(rows)} 条，"
+            f"{provider.display_name} 分 {len(outcomes)} 批识别 {page_count} 页、{len(rows)} 条，"
             f"生成 {valid} 条候选"
         )
         if rejected:
@@ -357,7 +393,7 @@ def process_ocr_source_file(
             rows=rows,
             warning_count=warning_count,
         )
-    return _persist_result(snapshot, combined, settings)
+    return _persist_result(snapshot, combined, settings, provider_id=provider.provider_id)
 
 
 def _record_failure(source_file_id: str, message: str) -> None:

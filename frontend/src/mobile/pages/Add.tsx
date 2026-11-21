@@ -12,6 +12,7 @@ import { createTransaction, listAccounts, listCategories, type NewTransactionInp
 import { ApiError } from "@/api/client";
 import { validateTransaction, type TxnField } from "@/lib/validate-txn";
 import { parseDecimalCents, parsePositiveCents } from "@/lib/decimal";
+import { shanghaiDateTimeInputToIso } from "@/lib/ledger-date";
 import { accountOptionSuffix, canWriteAccount } from "@/lib/accounts";
 import type { Account } from "@/data/types";
 
@@ -43,8 +44,8 @@ function AccountSelect({
   );
 }
 
-/** 本页字段在共享校验之外多了外币折合人民币（baseAmount），validate-txn.ts 是共享文件不能改，字段类型在本地扩展 */
-type AddField = TxnField | "baseAmount";
+/** 本页字段在共享校验之外多了外币折合人民币（baseAmount）与补记日期（date） */
+type AddField = TxnField | "baseAmount" | "date";
 interface AddError {
   field: AddField;
   message: string;
@@ -74,6 +75,7 @@ export default function AddPage() {
   const [fromId, setFromId] = useState("");
   const [toId, setToId] = useState("");
   const [note, setNote] = useState("");
+  const [occurredAt, setOccurredAt] = useState("");
   const [errors, setErrors] = useState<AddError[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -164,6 +166,16 @@ export default function AddPage() {
       }
     }
 
+    let resolvedDateIso = new Date().toISOString();
+    if (occurredAt.trim()) {
+      const parsedDate = shanghaiDateTimeInputToIso(occurredAt);
+      if (!parsedDate) {
+        errs.push({ field: "date", message: "请输入有效的交易日期时间（上海时间）" });
+      } else {
+        resolvedDateIso = parsedDate;
+      }
+    }
+
     setErrors(errs);
     if (errs.length > 0) return;
 
@@ -183,7 +195,7 @@ export default function AddPage() {
       ...(kind === "transfer" ? { toAccountId: toId } : {}),
       amountCents: parsedAmount.cents,
       currency: accts.find((a) => a.id === acctId)?.currency ?? "CNY",
-      date: new Date().toISOString(),
+      date: resolvedDateIso,
       // CNY 不提交 baseAmountCents；外币必填折合金额，本表单不填 fxRate（不传该字段）
       ...(isForeign && parsedBase && parsedBase.ok ? { baseAmountCents: parsedBase.cents } : {}),
     };
@@ -391,6 +403,19 @@ export default function AddPage() {
           placeholder="写点什么…"
           className="glass h-10 w-full rounded-xl px-3 text-sm text-ink outline-none placeholder:text-ink-faint"
         />
+
+        <p className="mb-1.5 mt-4 text-xs font-medium text-ink-faint">交易时间（选填，留空按此刻·上海时间）</p>
+        <input
+          type="datetime-local"
+          aria-label="交易时间（上海时间）"
+          value={occurredAt}
+          onChange={(e) => {
+            setOccurredAt(e.target.value);
+            setErrors((errs) => errs.filter((err) => err.field !== "date"));
+          }}
+          className="glass h-10 w-full rounded-xl px-3 text-sm text-ink outline-none"
+        />
+        <FieldError errors={errors} field="date" />
       </div>
 
       {/* 保存 */}

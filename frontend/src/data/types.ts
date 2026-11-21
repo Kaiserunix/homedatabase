@@ -24,6 +24,16 @@ export type Passkey = S["PasskeyOut"];
 export type PeriodLock = S["PeriodLockOut"];
 export type ReportTierMeta = S["ReportTierOut"];
 export type AccountGrant = S["AccountGrantOut"];
+export type CfoCapabilities = S["CfoCapabilitiesOut"];
+export type CfoAskResult = S["CfoAskOut"];
+export type CfoResolvedQuery = S["CfoResolvedQueryOut"];
+export type CfoMetrics = S["CfoMetricsOut"];
+export type CfoDriver = S["CfoDriverOut"];
+export type CfoCitation = S["CfoCitationOut"];
+export type CashflowRadarResult = S["CashflowRadarOut"];
+export type CashflowScenario = S["CashflowScenarioOut"];
+export type CashflowWeekBucket = S["CashflowWeekBucketOut"];
+export type RecurringCandidate = S["RecurringCandidateOut"];
 
 // ---------- 输入模型（写操作负载） ----------
 export type AccountCreateInput = S["AccountCreateInput"];
@@ -37,6 +47,10 @@ export type NewSplitInput = S["NewSplitInput"];
 export type SplitResponseInput = S["SplitResponseInput"];
 export type SplitShareUpdateInput = S["SplitShareUpdateInput"];
 export type PeriodLockInput = S["PeriodLockInput"];
+export type CfoAskInput = Omit<S["CfoAskInput"], "largeExpenseThresholdCents"> &
+  Partial<Pick<S["CfoAskInput"], "largeExpenseThresholdCents">>;
+export type CashflowRadarInput = Partial<S["CashflowRadarInput"]>;
+export type PlannedCashflowEventInput = S["PlannedCashflowEventInput"];
 
 // ---------- 会话 / WebAuthn ----------
 export type AuthSession = S["AuthOut"];

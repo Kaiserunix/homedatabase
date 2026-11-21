@@ -31,7 +31,7 @@ const candidate = (id: string, status: ImportCandidate["status"]): ImportCandida
   originalCategory: null,
   targetAccountId: "a-alipay",
   validationStatus: "valid",
-  confidence: "high",
+  confidence: "0.95",
   version: 1,
 });
 

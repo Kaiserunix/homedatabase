@@ -79,15 +79,15 @@ class _OcrOutput(BaseModel):
         return values
 
 
-def parse_ocr_result(path: Path, *, max_transactions: int) -> ParseOutcome:
+def parse_ocr_payload(
+    payload: object,
+    *,
+    max_transactions: int,
+    provider_label: str = "Codex OCR",
+) -> ParseOutcome:
     try:
-        if path.stat().st_size > _MAX_RESULT_BYTES:
-            raise OcrResultError("OCR 结果超过安全大小限制")
-        payload = json.loads(path.read_text(encoding="utf-8"))
         output = _OcrOutput.model_validate(payload)
-    except OcrResultError:
-        raise
-    except (OSError, UnicodeError, json.JSONDecodeError, ValidationError) as exc:
+    except ValidationError as exc:
         raise OcrResultError("OCR 返回的数据格式无效") from exc
     if len(output.transactions) > max_transactions:
         raise OcrResultError("OCR 返回的交易条数超过批次限制")
@@ -130,7 +130,7 @@ def parse_ocr_result(path: Path, *, max_transactions: int) -> ParseOutcome:
 
     valid = sum(row.can_create_candidate for row in rows)
     rejected = len(rows) - valid
-    message = f"Codex OCR 识别 {len(rows)} 条，生成 {valid} 条候选"
+    message = f"{provider_label} 识别 {len(rows)} 条，生成 {valid} 条候选"
     if rejected:
         message += f"；{rejected} 条未通过后端校验"
     if output.warnings:
@@ -140,4 +140,25 @@ def parse_ocr_result(path: Path, *, max_transactions: int) -> ParseOutcome:
         message=message,
         rows=rows,
         warning_count=len(output.warnings),
+    )
+
+
+def parse_ocr_result(
+    path: Path,
+    *,
+    max_transactions: int,
+    provider_label: str = "Codex OCR",
+) -> ParseOutcome:
+    try:
+        if path.stat().st_size > _MAX_RESULT_BYTES:
+            raise OcrResultError("OCR 结果超过安全大小限制")
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except OcrResultError:
+        raise
+    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
+        raise OcrResultError("OCR 返回的数据格式无效") from exc
+    return parse_ocr_payload(
+        payload,
+        max_transactions=max_transactions,
+        provider_label=provider_label,
     )

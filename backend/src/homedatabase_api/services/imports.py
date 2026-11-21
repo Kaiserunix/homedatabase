@@ -248,9 +248,63 @@ def _find_duplicate_source_file(
     return None
 
 
+_CATEGORY_SYNONYMS: dict[tuple[str, str], str] = {
+    ("expense", "餐饮美食"): "餐饮",
+    ("expense", "外卖餐饮"): "餐饮",
+    ("expense", "日用百货"): "买菜超市",
+    ("expense", "商超百货"): "买菜超市",
+    ("expense", "生鲜食品"): "买菜超市",
+    ("expense", "交通出行"): "交通",
+    ("expense", "公共交通"): "交通",
+    ("expense", "医疗健康"): "医疗",
+    ("expense", "教育培训"): "教育",
+    ("expense", "文化休闲"): "娱乐",
+    ("expense", "休闲娱乐"): "娱乐",
+    ("expense", "住房物业"): "居家",
+    ("expense", "生活日用"): "居家",
+    ("income", "薪酬"): "工资",
+    ("income", "工资薪金"): "工资",
+    ("income", "投资理财"): "理财收益",
+    ("income", "微信红包"): "其他收入",
+}
+
+
 def _category_lookup(db: Session) -> dict[tuple[str, str], str]:
     categories = db.scalars(select(Category).where(Category.active.is_(True))).all()
-    return {(item.kind, item.name.strip().casefold()): item.id for item in categories}
+    lookup = {(item.kind, item.name.strip().casefold()): item.id for item in categories}
+    for (kind, alias), target_name in _CATEGORY_SYNONYMS.items():
+        target_id = lookup.get((kind, target_name.casefold()))
+        if target_id and (kind, alias.casefold()) not in lookup:
+            lookup[(kind, alias.casefold())] = target_id
+    return lookup
+
+
+def _payee_category_memory(
+    db: Session,
+    member: Member,
+    active_category_ids: set[str],
+) -> dict[tuple[str, str], str]:
+    recent = db.scalars(
+        select(Transaction)
+        .where(
+            Transaction.deleted_at.is_(None),
+            Transaction.type.in_(("expense", "income")),
+            Transaction.category_id.is_not(None),
+        )
+        .options(selectinload(Transaction.lines))
+        .order_by(Transaction.occurred_at.desc(), Transaction.id.desc())
+        .limit(1000)
+    ).all()
+    memory: dict[tuple[str, str], str] = {}
+    for txn in recent:
+        if txn.category_id not in active_category_ids:
+            continue
+        if not can_view_transaction(db, member, txn):
+            continue
+        key = (txn.type, txn.payee.strip().casefold())
+        if key not in memory:
+            memory[key] = txn.category_id
+    return memory
 
 
 def _parse_source_file(
@@ -305,6 +359,7 @@ def _ingest_parse_outcome(
     if outcome.status != "parsed":
         return
     known_hashes = _known_source_hashes(db, member, [row.source_hash for row in outcome.rows])
+    payee_memory = _payee_category_memory(db, member, set(categories.values()))
     for row in outcome.rows:
         record = SourceRecord(
             id=new_id("src"),
@@ -341,6 +396,8 @@ def _ingest_parse_outcome(
         category_id = None
         if row.original_category:
             category_id = categories.get((row.direction, row.original_category.strip().casefold()))
+        if category_id is None and row.payee and row.direction:
+            category_id = payee_memory.get((row.direction, row.payee.strip().casefold()))
         candidate = ImportCandidate(
             id=new_id("cand"),
             batch=batch,
@@ -499,6 +556,7 @@ def patch_candidate(
     before = {
         "date": candidate.date.isoformat(),
         "payee": candidate.payee,
+        "direction": candidate.direction,
         "amount_minor": candidate.amount_minor,
         "fx_rate": str(candidate.fx_rate) if candidate.fx_rate is not None else None,
         "base_amount_minor": candidate.base_amount_minor,
@@ -524,6 +582,15 @@ def patch_candidate(
         candidate.date = normalise_to_utc(patch.date)
     if patch.payee is not None:
         candidate.payee = patch.payee
+    if patch.direction is not None and patch.direction != candidate.direction:
+        candidate.direction = patch.direction
+        if (
+            "suggested_category_id" not in patch.model_fields_set
+            and candidate.suggested_category_id
+        ):
+            existing_cat = db.get(Category, candidate.suggested_category_id)
+            if existing_cat and existing_cat.kind != patch.direction:
+                candidate.suggested_category_id = None
     if patch.amount_cents is not None:
         candidate.amount_minor = patch.amount_cents
     candidate.fx_rate = proposed_fx_rate
@@ -547,6 +614,7 @@ def patch_candidate(
         after={
             "date": candidate.date.isoformat(),
             "payee": candidate.payee,
+            "direction": candidate.direction,
             "amount_minor": candidate.amount_minor,
             "fx_rate": str(candidate.fx_rate) if candidate.fx_rate is not None else None,
             "base_amount_minor": candidate.base_amount_minor,

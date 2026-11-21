@@ -285,6 +285,7 @@ class ImportCandidatePatch(ApiModel):
     payee: Annotated[
         str | None, StringConstraints(strip_whitespace=True, min_length=1, max_length=300)
     ] = None
+    direction: Literal["expense", "income"] | None = None
     amount_cents: PositiveMinor | None = Field(default=None, alias="amountCents")
     fx_rate: FxRate | None = Field(default=None, alias="fxRate")
     base_amount_cents: PositiveMinor | None = Field(default=None, alias="baseAmountCents")
@@ -423,3 +424,173 @@ class PeriodLockOut(ApiModel):
     locked_by: str = Field(alias="lockedBy")
     reason: str
     created_at: datetime = Field(alias="createdAt")
+
+
+CfoIntentType = Literal[
+    "overview",
+    "spending_change",
+    "frequency_vs_ticket",
+    "financial_memory",
+    "large_expenses",
+]
+CfoGrowthDriverType = Literal[
+    "frequency",
+    "ticket_size",
+    "mixed",
+    "decreased",
+    "flat",
+    "none",
+]
+
+
+class CfoCapabilitiesOut(ApiModel):
+    ocr_enabled: bool = Field(alias="ocrEnabled")
+    ocr_provider: str = Field(alias="ocrProvider")
+    cfo_provider: str = Field(alias="cfoProvider")
+    external_llm_enabled: bool = Field(alias="externalLlmEnabled")
+    supported_intents: list[CfoIntentType] = Field(alias="supportedIntents")
+    privacy_boundary: str = Field(alias="privacyBoundary")
+
+
+class CfoAskInput(ApiModel):
+    question: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
+    as_of_date: date | None = Field(default=None, alias="asOfDate")
+    account_id: str | None = Field(default=None, alias="accountId")
+    scope: Literal["all", "personal", "family"] | None = None
+    large_expense_threshold_cents: PositiveMinor = Field(
+        default=50_000,
+        alias="largeExpenseThresholdCents",
+    )
+
+
+class CfoResolvedQueryOut(ApiModel):
+    starts_on: date = Field(alias="startsOn")
+    ends_on: date = Field(alias="endsOn")
+    comparison_starts_on: date | None = Field(default=None, alias="comparisonStartsOn")
+    comparison_ends_on: date | None = Field(default=None, alias="comparisonEndsOn")
+    scope: Literal["all", "personal", "family"]
+    account_ids: list[str] = Field(alias="accountIds")
+    category_ids: list[str] = Field(alias="categoryIds")
+    keyword: str | None = None
+
+
+class CfoMetricsOut(ApiModel):
+    gross_expense_cents: NonNegativeMinor = Field(alias="grossExpenseCents")
+    linked_refund_cents: NonNegativeMinor = Field(alias="linkedRefundCents")
+    net_expense_cents: NonNegativeMinor = Field(alias="netExpenseCents")
+    split_reimbursed_cents: NonNegativeMinor = Field(alias="splitReimbursedCents")
+    own_burden_cents: NonNegativeMinor = Field(alias="ownBurdenCents")
+    income_cents: NonNegativeMinor = Field(alias="incomeCents")
+    net_cashflow_cents: SignedMinor = Field(alias="netCashflowCents")
+    expense_count: int = Field(alias="expenseCount", ge=0)
+    average_expense_cents: NonNegativeMinor = Field(alias="averageExpenseCents")
+    previous_net_expense_cents: NonNegativeMinor | None = Field(
+        default=None, alias="previousNetExpenseCents"
+    )
+    net_expense_delta_cents: SignedMinor | None = Field(default=None, alias="netExpenseDeltaCents")
+    previous_expense_count: int | None = Field(default=None, alias="previousExpenseCount", ge=0)
+    previous_average_expense_cents: NonNegativeMinor | None = Field(
+        default=None, alias="previousAverageExpenseCents"
+    )
+    primary_growth_driver: CfoGrowthDriverType = Field(alias="primaryGrowthDriver")
+
+
+class CfoDriverOut(ApiModel):
+    label: str
+    kind: Literal["category", "payee"]
+    current_cents: NonNegativeMinor = Field(alias="currentCents")
+    previous_cents: NonNegativeMinor = Field(alias="previousCents")
+    delta_cents: SignedMinor = Field(alias="deltaCents")
+    transaction_count: int = Field(alias="transactionCount", ge=0)
+    transaction_ids: list[str] = Field(alias="transactionIds")
+
+
+class CfoCitationOut(ApiModel):
+    transaction_id: str = Field(alias="transactionId")
+    date: datetime
+    type: TxnType
+    payee: str
+    category_id: str | None = Field(alias="categoryId")
+    category_name: str | None = Field(alias="categoryName")
+    currency: CurrencyCode
+    amount_cents: PositiveMinor = Field(alias="amountCents")
+    base_amount_cents: PositiveMinor = Field(alias="baseAmountCents")
+    linked_refund_cents: NonNegativeMinor = Field(alias="linkedRefundCents")
+    own_burden_cents: NonNegativeMinor = Field(alias="ownBurdenCents")
+    split_status: Literal["none", "open", "settled", "returned"] = Field(alias="splitStatus")
+    source: Literal["manual", "import"]
+    source_filename: str | None = Field(default=None, alias="sourceFilename")
+    source_ref: str | None = Field(default=None, alias="sourceRef")
+
+
+class CfoAskOut(ApiModel):
+    question: str
+    intent: CfoIntentType
+    provider: str
+    answer: str
+    assumptions: list[str]
+    resolved_query: CfoResolvedQueryOut = Field(alias="resolvedQuery")
+    metrics: CfoMetricsOut
+    top_changes: list[CfoDriverOut] = Field(alias="topChanges")
+    citations: list[CfoCitationOut]
+
+
+class PlannedCashflowEventInput(ApiModel):
+    title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
+    direction: Literal["expense", "income"]
+    amount_cents: PositiveMinor = Field(alias="amountCents")
+    occurs_on: date = Field(alias="occursOn")
+
+
+class CashflowRadarInput(ApiModel):
+    as_of_date: date | None = Field(default=None, alias="asOfDate")
+    horizon_days: int = Field(default=90, ge=7, le=365, alias="horizonDays")
+    lookback_days: int = Field(default=90, ge=30, le=365, alias="lookbackDays")
+    scope: Literal["all", "personal", "family"] = "all"
+    minimum_safe_balance_cents: NonNegativeMinor = Field(default=0, alias="minimumSafeBalanceCents")
+    planned_events: list[PlannedCashflowEventInput] = Field(
+        default_factory=list, max_length=50, alias="plannedEvents"
+    )
+
+
+class RecurringCandidateOut(ApiModel):
+    payee: str
+    direction: Literal["expense", "income"]
+    cadence: Literal["weekly", "monthly"]
+    typical_amount_cents: PositiveMinor = Field(alias="typicalAmountCents")
+    next_expected_date: date | None = Field(default=None, alias="nextExpectedDate")
+    confidence: Decimal
+    evidence_transaction_ids: list[str] = Field(alias="evidenceTransactionIds")
+
+
+class CashflowWeekBucketOut(ApiModel):
+    week_index: int = Field(alias="weekIndex", ge=1)
+    starts_on: date = Field(alias="startsOn")
+    ends_on: date = Field(alias="endsOn")
+    inflow_cents: NonNegativeMinor = Field(alias="inflowCents")
+    outflow_cents: NonNegativeMinor = Field(alias="outflowCents")
+    net_cents: SignedMinor = Field(alias="netCents")
+    closing_balance_cents: SignedMinor = Field(alias="closingBalanceCents")
+
+
+class CashflowScenarioOut(ApiModel):
+    scenario: Literal["baseline", "conservative", "stress"]
+    ending_balance_cents: SignedMinor = Field(alias="endingBalanceCents")
+    lowest_balance_cents: SignedMinor = Field(alias="lowestBalanceCents")
+    tightest_week_start: date = Field(alias="tightestWeekStart")
+    breaches_safe_balance: bool = Field(alias="breachesSafeBalance")
+    weekly_buckets: list[CashflowWeekBucketOut] = Field(alias="weeklyBuckets")
+
+
+class CashflowRadarOut(ApiModel):
+    as_of_date: date = Field(alias="asOfDate")
+    horizon_days: int = Field(alias="horizonDays")
+    starting_liquid_balance_cents: SignedMinor = Field(alias="startingLiquidBalanceCents")
+    excluded_foreign_account_ids: list[str] = Field(alias="excludedForeignAccountIds")
+    daily_discretionary_expense_cents: NonNegativeMinor = Field(
+        alias="dailyDiscretionaryExpenseCents"
+    )
+    recurring_candidates: list[RecurringCandidateOut] = Field(alias="recurringCandidates")
+    scenarios: list[CashflowScenarioOut]
+    risk_alerts: list[str] = Field(alias="riskAlerts")
+    assumptions: list[str]

@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Protocol
 from zoneinfo import ZoneInfo
 
 from openpyxl import load_workbook
@@ -185,6 +185,64 @@ def _parsed_rows_message(rows: list[ParsedRow]) -> str:
     return f"{message}，{detail}，已保留原始记录但未生成候选"
 
 
+class StatementParserPlugin(Protocol):
+    """Pluggable deterministic bill-statement parser contract."""
+
+    extensions: tuple[str, ...]
+
+    def parse(
+        self,
+        path: Path,
+        *,
+        max_rows: int,
+        max_uncompressed_bytes: int,
+    ) -> ParseOutcome: ...
+
+
+class _DelimitedStatementParser:
+    extensions = (".csv", ".tsv")
+
+    def parse(
+        self,
+        path: Path,
+        *,
+        max_rows: int,
+        max_uncompressed_bytes: int,
+    ) -> ParseOutcome:
+        _ = max_uncompressed_bytes
+        return _parse_delimited(path, max_rows=max_rows)
+
+
+class _XlsxStatementParser:
+    extensions = (".xlsx",)
+
+    def parse(
+        self,
+        path: Path,
+        *,
+        max_rows: int,
+        max_uncompressed_bytes: int,
+    ) -> ParseOutcome:
+        return _parse_xlsx(
+            path,
+            max_rows=max_rows,
+            max_uncompressed_bytes=max_uncompressed_bytes,
+        )
+
+
+_STATEMENT_PARSERS: dict[str, StatementParserPlugin] = {}
+
+
+def register_statement_parser(plugin: StatementParserPlugin) -> None:
+    """Register a statement parser plugin for one or more lowercase file extensions."""
+    for ext in plugin.extensions:
+        _STATEMENT_PARSERS[ext.casefold()] = plugin
+
+
+for _default_plugin in (_DelimitedStatementParser(), _XlsxStatementParser()):
+    register_statement_parser(_default_plugin)
+
+
 def parse_import_file(
     path: Path,
     filename: str,
@@ -197,10 +255,9 @@ def parse_import_file(
         if not _has_expected_signature(path, suffix):
             return ParseOutcome("rejected", "文件扩展名与内容不符")
         return ParseOutcome("needs_ocr", "文件已安全保存，等待多模态/OCR 工作器处理")
-    if suffix in {".csv", ".tsv"}:
-        return _parse_delimited(path, max_rows=max_rows)
-    if suffix == ".xlsx":
-        return _parse_xlsx(
+    plugin = _STATEMENT_PARSERS.get(suffix)
+    if plugin is not None:
+        return plugin.parse(
             path,
             max_rows=max_rows,
             max_uncompressed_bytes=max_uncompressed_bytes,
@@ -341,16 +398,66 @@ def _parse_table(
     return ParseOutcome("parsed", _parsed_rows_message(parsed), parsed)
 
 
+_PRIMARY_DIRECTION_ALIASES: set[str] = {
+    "direction",
+    "inout",
+    "收支",
+    "收支类型",
+    "资金方向",
+}
+_PRIMARY_PAYEE_ALIASES: set[str] = {
+    "payee",
+    "merchant",
+    "counterparty",
+    "交易对方",
+    "对方户名",
+    "商户",
+    "商家",
+    "收款方",
+    "付款方",
+}
+
+
 def _find_header(rows: list[list[object]]) -> tuple[int | None, dict[str, int]]:
     best: tuple[int, int, dict[str, int]] | None = None
     for row_index, row in enumerate(rows):
         roles: dict[str, int] = {}
+        role_is_primary: dict[str, bool] = {}
+        fallback_category_col: int | None = None
         for column_index, value in enumerate(row):
             normalised = _normalise_header(_cell_text(value) or "")
             for role, aliases in _ALIASES.items():
-                if normalised in aliases and role not in roles:
+                if normalised not in aliases:
+                    continue
+                if role == "direction":
+                    is_primary = normalised in _PRIMARY_DIRECTION_ALIASES
+                    if role not in roles:
+                        roles[role] = column_index
+                        role_is_primary[role] = is_primary
+                        if not is_primary and fallback_category_col is None:
+                            fallback_category_col = column_index
+                        break
+                    if is_primary and not role_is_primary.get(role, False):
+                        roles[role] = column_index
+                        role_is_primary[role] = True
+                        break
+                    continue
+                if role == "payee":
+                    is_primary = normalised in _PRIMARY_PAYEE_ALIASES
+                    if role not in roles or (is_primary and not role_is_primary.get(role, False)):
+                        roles[role] = column_index
+                        role_is_primary[role] = is_primary
+                        break
+                    continue
+                if role not in roles:
                     roles[role] = column_index
                     break
+        if (
+            "category" not in roles
+            and fallback_category_col is not None
+            and roles.get("direction") != fallback_category_col
+        ):
+            roles["category"] = fallback_category_col
         has_amount = any(role in roles for role in ("amount", "expense_amount", "income_amount"))
         score = len(roles)
         if "date" in roles and has_amount and score >= 2:

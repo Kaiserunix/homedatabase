@@ -1,16 +1,13 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
-
 from fastapi import Depends, HTTPException, Request, Security, status
 from fastapi.security import APIKeyCookie, HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from .config import Settings, get_settings
 from .database import get_db
-from .models import LoginSession, Member
-from .security import hash_token
+from .models import Member
+from .services.auth import resolve_dev_member, resolve_session_member
 
 session_cookie_scheme = APIKeyCookie(
     name="hd_session",
@@ -23,10 +20,6 @@ bearer_scheme = HTTPBearer(
     description="仅供受控 CLI/运维客户端使用的同一会话令牌。",
     auto_error=False,
 )
-
-
-def _aware(value: datetime) -> datetime:
-    return value if value.tzinfo else value.replace(tzinfo=UTC)
 
 
 def get_current_member(
@@ -44,24 +37,15 @@ def get_current_member(
     if not token and bearer:
         token = bearer.credentials.strip()
     if token:
-        login = db.scalar(
-            select(LoginSession).where(
-                LoginSession.token_hash == hash_token(token),
-                LoginSession.revoked_at.is_(None),
-            )
-        )
-        if login and _aware(login.expires_at) > datetime.now(UTC):
-            member = db.get(Member, login.member_id)
-            if member and member.active:
-                login.last_used_at = datetime.now(UTC)
-                db.commit()
-                return member
+        member = resolve_session_member(db, token)
+        if member is not None:
+            return member
 
     if settings.environment in {"local", "test"}:
         dev_id = request.headers.get("x-dev-member-id") or settings.dev_member_id
         if dev_id:
-            member = db.get(Member, dev_id)
-            if member and member.active:
+            member = resolve_dev_member(db, dev_id)
+            if member is not None:
                 return member
 
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="请先登录")

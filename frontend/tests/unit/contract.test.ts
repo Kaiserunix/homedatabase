@@ -114,7 +114,7 @@ describe("契约测试（openapi.yaml，fetch 打桩，非端到端）", () => {
 
   describe("b. FormData 多文件上传（POST /imports）", () => {
     it("请求体为真 FormData：两个 files 条目 + source + targetAccountId；不手动设 Content-Type", async () => {
-      const fetchMock = vi.fn().mockResolvedValue(jsonResponse(200, { id: "b-new" }));
+      const fetchMock = vi.fn().mockResolvedValue(jsonResponse(201, { id: "b-new" }));
       vi.stubGlobal("fetch", fetchMock);
 
       const files = [
@@ -282,8 +282,8 @@ describe("契约测试（openapi.yaml，fetch 打桩，非端到端）", () => {
         targetAccountId: "a-usd",
         duplicateOfTxnId: null,
         status: "pending",
-        validationStatus: "ok",
-        confidence: "medium",
+        validationStatus: "valid",
+        confidence: "0.82",
         fxRate: "7.20",
         baseAmountCents: 115_13,
         version: 3,
@@ -298,7 +298,7 @@ describe("契约测试（openapi.yaml，fetch 打桩，非端到端）", () => {
       });
 
       // 成功后调用方以返回候选为准（version/validationStatus 随响应更新）
-      expect(next.validationStatus).toBe("ok");
+      expect(next.validationStatus).toBe("valid");
       expect(next.fxRate).toBe("7.20");
       expect(next.baseAmountCents).toBe(115_13);
       expect(next.version).toBe(3);

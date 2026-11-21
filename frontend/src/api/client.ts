@@ -65,7 +65,7 @@ function buildUrl(path: string, params?: ApiFetchOptions["params"]): string {
   return `${baseUrl()}${path}${query ? `?${query}` : ""}`;
 }
 
-/** 非 2xx 归一化：尽量解析 FastAPI 的 detail 字段（字符串或 422 校验数组） */
+/** 非 2xx 归一化：尽量解析 FastAPI 的 detail 字段（字符串、422 校验数组或结构化对象 detail.message） */
 async function toApiError(res: Response): Promise<ApiError> {
   let message = `请求失败（HTTP ${res.status}）`;
   let details: unknown;
@@ -79,6 +79,13 @@ async function toApiError(res: Response): Promise<ApiError> {
       message = detail
         .map((d: { msg?: unknown }) => (typeof d?.msg === "string" ? d.msg : JSON.stringify(d)))
         .join("；");
+      details = detail;
+    } else if (detail !== null && typeof detail === "object") {
+      // FastAPI 结构化冲突负载：{ detail: { message: "...", transactionIds/candidateIds: [...] } }
+      const nestedMsg = (detail as { message?: unknown }).message;
+      if (typeof nestedMsg === "string" && nestedMsg.trim()) {
+        message = nestedMsg;
+      }
       details = detail;
     } else if (detail !== undefined) {
       details = detail;

@@ -280,6 +280,57 @@ export interface paths {
         patch: operations["update_category_api_categories__category_id__patch"];
         trace?: never;
     };
+    "/api/cfo/ask": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Ask */
+        post: operations["ask_api_cfo_ask_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cfo/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Capabilities */
+        get: operations["capabilities_api_cfo_capabilities_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/cfo/cashflow-radar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cashflow Radar */
+        post: operations["cashflow_radar_api_cfo_cashflow_radar_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -842,6 +893,102 @@ export interface components {
             /** Candidateids */
             candidateIds: string[];
         };
+        /** CashflowRadarInput */
+        CashflowRadarInput: {
+            /** Asofdate */
+            asOfDate?: string | null;
+            /**
+             * Horizondays
+             * @default 90
+             */
+            horizonDays: number;
+            /**
+             * Lookbackdays
+             * @default 90
+             */
+            lookbackDays: number;
+            /**
+             * Minimumsafebalancecents
+             * @default 0
+             */
+            minimumSafeBalanceCents: number;
+            /** Plannedevents */
+            plannedEvents?: components["schemas"]["PlannedCashflowEventInput"][];
+            /**
+             * Scope
+             * @default all
+             * @enum {string}
+             */
+            scope: "all" | "personal" | "family";
+        };
+        /** CashflowRadarOut */
+        CashflowRadarOut: {
+            /**
+             * Asofdate
+             * Format: date
+             */
+            asOfDate: string;
+            /** Assumptions */
+            assumptions: string[];
+            /** Dailydiscretionaryexpensecents */
+            dailyDiscretionaryExpenseCents: number;
+            /** Excludedforeignaccountids */
+            excludedForeignAccountIds: string[];
+            /** Horizondays */
+            horizonDays: number;
+            /** Recurringcandidates */
+            recurringCandidates: components["schemas"]["RecurringCandidateOut"][];
+            /** Riskalerts */
+            riskAlerts: string[];
+            /** Scenarios */
+            scenarios: components["schemas"]["CashflowScenarioOut"][];
+            /** Startingliquidbalancecents */
+            startingLiquidBalanceCents: number;
+        };
+        /** CashflowScenarioOut */
+        CashflowScenarioOut: {
+            /** Breachessafebalance */
+            breachesSafeBalance: boolean;
+            /** Endingbalancecents */
+            endingBalanceCents: number;
+            /** Lowestbalancecents */
+            lowestBalanceCents: number;
+            /**
+             * Scenario
+             * @enum {string}
+             */
+            scenario: "baseline" | "conservative" | "stress";
+            /**
+             * Tightestweekstart
+             * Format: date
+             */
+            tightestWeekStart: string;
+            /** Weeklybuckets */
+            weeklyBuckets: components["schemas"]["CashflowWeekBucketOut"][];
+        };
+        /** CashflowWeekBucketOut */
+        CashflowWeekBucketOut: {
+            /** Closingbalancecents */
+            closingBalanceCents: number;
+            /**
+             * Endson
+             * Format: date
+             */
+            endsOn: string;
+            /** Inflowcents */
+            inflowCents: number;
+            /** Netcents */
+            netCents: number;
+            /** Outflowcents */
+            outflowCents: number;
+            /**
+             * Startson
+             * Format: date
+             */
+            startsOn: string;
+            /** Weekindex */
+            weekIndex: number;
+        };
         /** CategoryCreateInput */
         CategoryCreateInput: {
             /**
@@ -889,6 +1036,186 @@ export interface components {
             icon?: string | null;
             /** Name */
             name?: string | null;
+        };
+        /** CfoAskInput */
+        CfoAskInput: {
+            /** Accountid */
+            accountId?: string | null;
+            /** Asofdate */
+            asOfDate?: string | null;
+            /**
+             * Largeexpensethresholdcents
+             * @default 50000
+             */
+            largeExpenseThresholdCents: number;
+            /** Question */
+            question: string;
+            /** Scope */
+            scope?: ("all" | "personal" | "family") | null;
+        };
+        /** CfoAskOut */
+        CfoAskOut: {
+            /** Answer */
+            answer: string;
+            /** Assumptions */
+            assumptions: string[];
+            /** Citations */
+            citations: components["schemas"]["CfoCitationOut"][];
+            /**
+             * Intent
+             * @enum {string}
+             */
+            intent: "overview" | "spending_change" | "frequency_vs_ticket" | "financial_memory" | "large_expenses";
+            metrics: components["schemas"]["CfoMetricsOut"];
+            /** Provider */
+            provider: string;
+            /** Question */
+            question: string;
+            resolvedQuery: components["schemas"]["CfoResolvedQueryOut"];
+            /** Topchanges */
+            topChanges: components["schemas"]["CfoDriverOut"][];
+        };
+        /** CfoCapabilitiesOut */
+        CfoCapabilitiesOut: {
+            /** Cfoprovider */
+            cfoProvider: string;
+            /** Externalllmenabled */
+            externalLlmEnabled: boolean;
+            /** Ocrenabled */
+            ocrEnabled: boolean;
+            /** Ocrprovider */
+            ocrProvider: string;
+            /** Privacyboundary */
+            privacyBoundary: string;
+            /** Supportedintents */
+            supportedIntents: ("overview" | "spending_change" | "frequency_vs_ticket" | "financial_memory" | "large_expenses")[];
+        };
+        /** CfoCitationOut */
+        CfoCitationOut: {
+            /** Amountcents */
+            amountCents: number;
+            /** Baseamountcents */
+            baseAmountCents: number;
+            /** Categoryid */
+            categoryId: string | null;
+            /** Categoryname */
+            categoryName: string | null;
+            /** Currency */
+            currency: string;
+            /**
+             * Date
+             * Format: date-time
+             */
+            date: string;
+            /** Linkedrefundcents */
+            linkedRefundCents: number;
+            /** Ownburdencents */
+            ownBurdenCents: number;
+            /** Payee */
+            payee: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "manual" | "import";
+            /** Sourcefilename */
+            sourceFilename?: string | null;
+            /** Sourceref */
+            sourceRef?: string | null;
+            /**
+             * Splitstatus
+             * @enum {string}
+             */
+            splitStatus: "none" | "open" | "settled" | "returned";
+            /** Transactionid */
+            transactionId: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "expense" | "income" | "transfer" | "refund";
+        };
+        /** CfoDriverOut */
+        CfoDriverOut: {
+            /** Currentcents */
+            currentCents: number;
+            /** Deltacents */
+            deltaCents: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "category" | "payee";
+            /** Label */
+            label: string;
+            /** Previouscents */
+            previousCents: number;
+            /** Transactioncount */
+            transactionCount: number;
+            /** Transactionids */
+            transactionIds: string[];
+        };
+        /** CfoMetricsOut */
+        CfoMetricsOut: {
+            /** Averageexpensecents */
+            averageExpenseCents: number;
+            /** Expensecount */
+            expenseCount: number;
+            /** Grossexpensecents */
+            grossExpenseCents: number;
+            /** Incomecents */
+            incomeCents: number;
+            /** Linkedrefundcents */
+            linkedRefundCents: number;
+            /** Netcashflowcents */
+            netCashflowCents: number;
+            /** Netexpensecents */
+            netExpenseCents: number;
+            /** Netexpensedeltacents */
+            netExpenseDeltaCents?: number | null;
+            /** Ownburdencents */
+            ownBurdenCents: number;
+            /** Previousaverageexpensecents */
+            previousAverageExpenseCents?: number | null;
+            /** Previousexpensecount */
+            previousExpenseCount?: number | null;
+            /** Previousnetexpensecents */
+            previousNetExpenseCents?: number | null;
+            /**
+             * Primarygrowthdriver
+             * @enum {string}
+             */
+            primaryGrowthDriver: "frequency" | "ticket_size" | "mixed" | "decreased" | "flat" | "none";
+            /** Splitreimbursedcents */
+            splitReimbursedCents: number;
+        };
+        /** CfoResolvedQueryOut */
+        CfoResolvedQueryOut: {
+            /** Accountids */
+            accountIds: string[];
+            /** Categoryids */
+            categoryIds: string[];
+            /** Comparisonendson */
+            comparisonEndsOn?: string | null;
+            /** Comparisonstartson */
+            comparisonStartsOn?: string | null;
+            /**
+             * Endson
+             * Format: date
+             */
+            endsOn: string;
+            /** Keyword */
+            keyword?: string | null;
+            /**
+             * Scope
+             * @enum {string}
+             */
+            scope: "all" | "personal" | "family";
+            /**
+             * Startson
+             * Format: date
+             */
+            startsOn: string;
         };
         /** DeleteInput */
         DeleteInput: {
@@ -1027,6 +1354,8 @@ export interface components {
             baseAmountCents?: number | null;
             /** Date */
             date?: string | null;
+            /** Direction */
+            direction?: ("expense" | "income") | null;
             /** Expectedversion */
             expectedVersion: number;
             /** Fxrate */
@@ -1227,6 +1556,46 @@ export interface components {
              * Format: date
              */
             startsOn: string;
+        };
+        /** PlannedCashflowEventInput */
+        PlannedCashflowEventInput: {
+            /** Amountcents */
+            amountCents: number;
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "expense" | "income";
+            /**
+             * Occurson
+             * Format: date
+             */
+            occursOn: string;
+            /** Title */
+            title: string;
+        };
+        /** RecurringCandidateOut */
+        RecurringCandidateOut: {
+            /**
+             * Cadence
+             * @enum {string}
+             */
+            cadence: "weekly" | "monthly";
+            /** Confidence */
+            confidence: string;
+            /**
+             * Direction
+             * @enum {string}
+             */
+            direction: "expense" | "income";
+            /** Evidencetransactionids */
+            evidenceTransactionIds: string[];
+            /** Nextexpecteddate */
+            nextExpectedDate?: string | null;
+            /** Payee */
+            payee: string;
+            /** Typicalamountcents */
+            typicalAmountCents: number;
         };
         /** ReportTierOut */
         ReportTierOut: {
@@ -2226,6 +2595,134 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CategoryOut"];
+                };
+            };
+            /** @description 未登录或会话已过期 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 已登录但权限不足 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    ask_api_cfo_ask_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CfoAskInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CfoAskOut"];
+                };
+            };
+            /** @description 未登录或会话已过期 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 已登录但权限不足 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    capabilities_api_cfo_capabilities_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CfoCapabilitiesOut"];
+                };
+            };
+            /** @description 未登录或会话已过期 */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description 已登录但权限不足 */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    cashflow_radar_api_cfo_cashflow_radar_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CashflowRadarInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CashflowRadarOut"];
                 };
             };
             /** @description 未登录或会话已过期 */

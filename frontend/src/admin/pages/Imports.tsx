@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { AlertTriangle, FileText, FileUp, Info, Upload } from "lucide-react";
 import { AdminHeader } from "@/admin/components/AdminHeader";
-import { Badge, Button, Card } from "@/components/ui";
+import { Badge, Button, Card, EmptyState } from "@/components/ui";
 import { Dialog, DialogContent, DialogHeader, DialogTrigger } from "@/components/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/select";
 import { Skeleton } from "@/components/skeleton";
@@ -12,26 +12,15 @@ import {
   getImportStatus, listAccounts, listImportBatches, undoImportBatch, uploadImport,
 } from "@/api/resources";
 import { ApiError } from "@/api/client";
-import type { BatchStatus, ImportBatch, ImportJob } from "@/data/types";
+import type { ImportJob } from "@/data/types";
+import {
+  ADMIN_BATCH_STATUS_META, canUndoBatch, extractConflictIds, formatImportSource,
+  summarizeSourceFiles, TERMINAL_BATCH_STATUSES,
+} from "@/domain/imports";
 import { fmtDateTime } from "@/lib/utils";
 import { accountOptionSuffix, canWriteAccount } from "@/lib/accounts";
 import { IMPORT_FILE_ACCEPT, IMPORT_FILE_HINT } from "@/lib/import-files";
 import { isDuplicate } from "@/lib/fx-review";
-
-/** 批次状态：全部 8 种如实展示；needs_ocr 是需要人工介入的警告，绝非成功 */
-const statusMeta: Record<BatchStatus, { tone: "neutral" | "accent" | "warn" | "ok" | "danger"; label: string }> = {
-  queued: { tone: "neutral", label: "排队中" },
-  processing: { tone: "accent", label: "解析中" },
-  reviewing: { tone: "warn", label: "待确认" },
-  needs_ocr: { tone: "warn", label: "需要人工识别" },
-  rejected: { tone: "danger", label: "已拒绝" },
-  failed: { tone: "danger", label: "解析失败" },
-  posted: { tone: "ok", label: "已入账" },
-  undone: { tone: "neutral", label: "已撤销" },
-};
-
-/** 轮询到此即停止（其余状态还会继续变化，无需再刷） */
-const TERMINAL: BatchStatus[] = ["reviewing", "needs_ocr", "rejected", "failed", "posted", "undone"];
 
 const SOURCE_OPTIONS = ["微信支付", "支付宝", "招商银行", "手动CSV"];
 const DEFAULT_SOURCE = "手动CSV";
@@ -42,15 +31,6 @@ const NO_ACCOUNT = "__none__";
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const errMsg = (e: unknown) => (e instanceof ApiError ? e.message : "操作失败，请稍后重试");
-
-/**
- * 撤销入口按候选实际状态判定，不只看 batch.status：
- * 有 confirmed 候选的 posted/needs_ocr 批次可整批撤销（含 needs_ocr 混合批次）；
- * 纯 needs_ocr（无 confirmed 候选）、undone 与进行中状态不提供撤销。
- */
-const canUndoBatch = (b: ImportBatch) =>
-  (b.status === "posted" || b.status === "needs_ocr") &&
-  b.candidates.some((c) => c.status === "confirmed");
 
 /** 表格骨架：与下方批次表格列位大致对齐 */
 function BatchTableSkeleton({ rows = 3 }: { rows?: number }) {
@@ -90,8 +70,11 @@ export default function ImportsPage() {
       setUndoId(null);
       retry();
     } catch (e) {
-      // 失败保留页面状态，如实展示错误，不做本地假成功
-      setUndoError(errMsg(e));
+      const { transactionIds } = extractConflictIds(e);
+      const base = errMsg(e);
+      setUndoError(
+        transactionIds.length > 0 ? `${base}（阻断账目数：${transactionIds.length}）` : base,
+      );
     } finally {
       setUndoing(false);
     }
@@ -101,16 +84,22 @@ export default function ImportsPage() {
     <div>
       <AdminHeader
         title="导入与确认"
-        desc="文件导入只生成候选账目，确认后才入账"
+        desc="文件导入只生成候选账目，核对修正并确认后才入账"
         action={<UploadDialog onDone={retry} />}
       />
 
-      {/* 批次表格：骨架 / 错误 / 表格互斥渲染 */}
+      {/* 批次表格：骨架 / 错误 / 空态 / 表格互斥渲染 */}
       <Card className="overflow-hidden">
         {loading ? (
           <BatchTableSkeleton />
         ) : error ? (
           <ErrorState title="导入批次加载失败" desc={error.message} onRetry={retry} />
+        ) : allBatches.length === 0 ? (
+          <EmptyState
+            icon={<FileUp className="h-8 w-8" />}
+            title="暂无导入批次"
+            hint="点击右上角「上传账单」导入 CSV、XLSX 或图片/PDF 账单"
+          />
         ) : (
           <table className="w-full text-sm">
             <thead>
@@ -126,8 +115,9 @@ export default function ImportsPage() {
             </thead>
             <tbody>
               {allBatches.map((b) => {
-                const meta = statusMeta[b.status];
+                const meta = ADMIN_BATCH_STATUS_META[b.status];
                 const dup = b.candidates.filter((c) => isDuplicate(c)).length;
+                const fileStats = summarizeSourceFiles(b.files);
                 return (
                   <tr key={b.id} className="border-t border-slate-900/5">
                     <td className="px-4 py-3">
@@ -135,9 +125,14 @@ export default function ImportsPage() {
                       {b.message && (b.status === "failed" || b.status === "rejected" || b.status === "needs_ocr") && (
                         <span className="block max-w-64 truncate text-xs text-ink-faint">{b.message}</span>
                       )}
+                      {fileStats.totalRejectedRows > 0 && (
+                        <span className="block text-xs text-danger">
+                          源文件异常跳过 {fileStats.totalRejectedRows} 行
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge>{b.source}</Badge>
+                      <Badge>{formatImportSource(b.source)}</Badge>
                     </td>
                     <td className="px-4 py-3 text-ink-soft">{fmtDateTime(b.importedAt)}</td>
                     <td className="px-4 py-3 text-ink-soft">{b.candidateCount}</td>
@@ -148,24 +143,33 @@ export default function ImportsPage() {
                       <Badge tone={meta.tone}>{meta.label}</Badge>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {b.status === "reviewing" && (
-                        <Link
-                          to={`/imports/${b.id}`}
-                          className="glass inline-flex h-8 items-center rounded-xl px-3 text-xs font-medium text-ink transition hover:bg-white/90"
-                        >
-                          去确认
-                        </Link>
-                      )}
-                      {canUndoBatch(b) && (
-                        <Button size="sm" variant="danger" onClick={() => { setUndoId(b.id); setUndoError(null); }}>
-                          整批撤销
-                        </Button>
-                      )}
-                      {b.status === "undone" && (
-                        <Button size="sm" variant="ghost" disabled>
-                          已撤销
-                        </Button>
-                      )}
+                      <div className="inline-flex items-center justify-end gap-1.5">
+                        {b.status === "reviewing" ? (
+                          <Link
+                            to={`/imports/${b.id}`}
+                            className="glass inline-flex h-8 items-center rounded-xl px-3 text-xs font-medium text-ink transition hover:bg-white/90"
+                          >
+                            去确认
+                          </Link>
+                        ) : (
+                          <Link
+                            to={`/imports/${b.id}`}
+                            className="inline-flex h-8 items-center rounded-xl px-2.5 text-xs text-ink-soft transition hover:bg-slate-900/5 hover:text-ink"
+                          >
+                            查看详情
+                          </Link>
+                        )}
+                        {canUndoBatch(b) && (
+                          <Button size="sm" variant="danger" onClick={() => { setUndoId(b.id); setUndoError(null); }}>
+                            整批撤销
+                          </Button>
+                        )}
+                        {b.status === "undone" && (
+                          <Button size="sm" variant="ghost" disabled>
+                            已撤销
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -179,9 +183,9 @@ export default function ImportsPage() {
         <div className="flex gap-2.5">
           <Info className="mt-0.5 h-4 w-4 shrink-0 text-ink-faint" />
           <div className="space-y-1 text-xs text-ink-soft">
-            <p>去重规则：同金额 + 同日期 + 同商户视为疑似重复，确认时可跳过。</p>
+            <p>去重规则：同金额 + 同日期 + 同商户或同源记录哈希视为疑似重复，确认时可跳过。</p>
+            <p>候选复核：进入详情可逐条修正日期、商户、金额、分类、目标账户与外币汇率，确认后才入账。</p>
             <p>PDF / 图片账单需要 OCR，识别完成前批次会显示「需要人工识别」，不代表导入成功。</p>
-            <p>原始账单文件不进入备份，只保留解析出的结构化数据。</p>
           </div>
         </div>
       </Card>
@@ -227,7 +231,7 @@ function UploadDialog({ onDone }: { onDone: () => void }) {
   const { data: accts } = useApiQuery(() => listAccounts(), []);
 
   const reset = () => {
-    pollSeq.current += 1; // 使进行中的轮询失效
+    pollSeq.current += 1;
     setFiles([]);
     setSource(DEFAULT_SOURCE);
     setTargetAccountId("");
@@ -237,7 +241,6 @@ function UploadDialog({ onDone }: { onDone: () => void }) {
     setUploadError(null);
   };
 
-  /** 统一的关闭入口：按钮直关与 Esc/遮罩关闭都重置表单（文件/来源/账户/错误） */
   const close = () => {
     setOpen(false);
     reset();
@@ -253,9 +256,8 @@ function UploadDialog({ onDone }: { onDone: () => void }) {
       const batch = await uploadImport(files, source, targetAccountId || null);
       if (pollSeq.current !== mySeq) return;
       setBatchId(batch.id);
-      // 轮询任务状态：约 1.5s 一次，直到终态
       let current = await getImportStatus(batch.id);
-      while (!TERMINAL.includes(current.status)) {
+      while (!TERMINAL_BATCH_STATUSES.includes(current.status)) {
         if (pollSeq.current !== mySeq) return;
         setJob(current);
         await sleep(1500);
@@ -360,7 +362,7 @@ function UploadDialog({ onDone }: { onDone: () => void }) {
 
           {stage === "working" && (
             <div className="space-y-1.5 rounded-xl bg-accent-soft px-3 py-2.5 text-xs text-accent-ink motion-safe:animate-fade-in">
-              <p>{job ? job.message || statusMeta[job.status].label : "上传文件中…"}</p>
+              <p>{job ? job.message || ADMIN_BATCH_STATUS_META[job.status].label : "上传文件中…"}</p>
               {job && (
                 <>
                   <div className="h-1.5 overflow-hidden rounded-full bg-white/50">
@@ -381,7 +383,9 @@ function UploadDialog({ onDone }: { onDone: () => void }) {
             <div className="space-y-1.5 rounded-xl bg-slate-900/[0.03] px-3 py-2.5 text-xs motion-safe:animate-fade-in">
               <p className="flex items-center gap-2 text-ink">
                 处理结果：
-                <Badge tone={statusMeta[job.status].tone}>{statusMeta[job.status].label}</Badge>
+                <Badge tone={ADMIN_BATCH_STATUS_META[job.status].tone}>
+                  {ADMIN_BATCH_STATUS_META[job.status].label}
+                </Badge>
               </p>
               {job.message && <p className="text-ink-soft">{job.message}</p>}
               <p className="text-ink-faint">

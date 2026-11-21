@@ -29,7 +29,7 @@ const candidate = (id: string, payee: string, version: number): ImportCandidate 
   duplicateOfTxnId: null,
   status: "pending",
   validationStatus: "valid",
-  confidence: "high",
+  confidence: "0.95",
   version,
 });
 
