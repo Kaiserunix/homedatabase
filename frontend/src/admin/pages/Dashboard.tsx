@@ -1,18 +1,22 @@
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowLeftRight, ChevronRight, CreditCard, DatabaseBackup, FileUp,
-  Landmark, ShoppingBag, TrendingUp,
+  Landmark, Receipt, ShoppingBag, TrendingUp,
 } from "lucide-react";
 import { AdminHeader } from "../components/AdminHeader";
-import { Amount, Badge, Card, SectionTitle } from "@/components/ui";
+import { Amount, Badge, Button, Card, EmptyState, SectionTitle } from "@/components/ui";
+import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/select";
 import { ErrorState } from "@/components/error";
 import { Skeleton, StatCardsSkeleton, TxnListSkeleton } from "@/components/skeleton";
+import { CashflowInsightCard } from "@/components/insights/CashflowInsightCard";
 import { dataIcon } from "@/components/icons";
+import {
+  formatCompactMonthLabel, formatSpacedMonthLabel, mainAccountName,
+  selectAvailableLedgerMonths, selectLatestActiveMonth, selectLedgerOverview,
+} from "@/domain/ledger-insights";
 import { fmtDate } from "@/lib/utils";
-import { sumCents } from "@/lib/decimal";
-import { sumBaseAmounts, baseCurrencyOf } from "@/lib/aggregate";
-import { currentLedgerMonthKey, ledgerMonthKey } from "@/lib/ledger-date";
-import { accountDisplayName } from "@/lib/privacy";
+import { currentLedgerMonthKey } from "@/lib/ledger-date";
 import { useApiQuery } from "@/api/useApi";
 import {
   listAccounts, listBackups, listCategories, listImportBatches, listSplits, listTransactions,
@@ -31,12 +35,6 @@ const locName: Record<string, string> = {
   local: "本地",
   overseas: "海外密文仓库",
 };
-
-/** 交易涉及的第一个真实账户名（损益行 accountId=null 跳过；private:counterparty 只显示脱敏占位） */
-function mainAccountName(t: Transaction, accts: Account[]): string {
-  const line = t.lines.find((l) => l.accountId !== null);
-  return line?.accountId ? accountDisplayName(line.accountId, accts, () => "—") : "—";
-}
 
 interface DashboardData {
   txns: Transaction[];
@@ -70,75 +68,58 @@ function MidCardsSkeleton() {
   );
 }
 
-function DashboardContent({ data }: { data: DashboardData }) {
+function DashboardContent({
+  data,
+  selectedMonth,
+  currentMonth,
+  onSelectMonth,
+}: {
+  data: DashboardData;
+  selectedMonth: string;
+  currentMonth: string;
+  onSelectMonth: (month: string) => void;
+}) {
   const { txns, accts, cats, batches, splitList, backupList } = data;
+  const [catScope, setCatScope] = useState<"month" | "all">("month");
+
   const categoryName = (id: string | null) =>
     id === null ? "未分类" : (cats.find((c) => c.id === id)?.name ?? "未分类");
 
-  // 统计由 listTransactions()+listAccounts() 前端聚合（总资产/负债只计 CNY 账户，
-  // 外币不折算、另行展示）；如后端提供聚合接口（如 GET /dashboard/summary），此处以下渲染不变
-  const totalAssetCents = sumCents(
-    accts.filter((a) => a.kind === "asset" && a.currency === "CNY").map((a) => a.balanceCents),
+  const latestActiveMonth = useMemo(() => selectLatestActiveMonth(txns), [txns]);
+  const overview = useMemo(
+    () =>
+      selectLedgerOverview({
+        txns,
+        accts,
+        cats,
+        month: selectedMonth,
+        categoryScope: catScope,
+        recentLimit: 8,
+      }),
+    [txns, accts, cats, selectedMonth, catScope],
   );
-  const totalLiabilityCents = sumCents(
-    accts.filter((a) => a.kind === "liability" && a.currency === "CNY").map((a) => a.balanceCents),
-  );
-  // 「本月」= 当前上海自然月（Asia/Shanghai 口径，禁止对原始 ISO slice/startsWith）
-  const month = currentLedgerMonthKey();
-  const [y, m] = month.split("-");
-  const monthLabel = `${y} 年 ${Number(m)} 月`;
-  // 跨交易统计一律按基础币 baseAmountCents 合计、以 baseCurrency 展示（bigint 超界保护）
-  const monthIncome = sumBaseAmounts(
-    txns.filter((t) => t.type === "income" && ledgerMonthKey(t.date) === month),
-  );
-  // 本月净支出 = 支出 − 退款（退款按自身账期归月，是反向支出而非收入；净值允许为零或负数，如实显示）
-  const monthExpenseGross = sumBaseAmounts(
-    txns.filter((t) => t.type === "expense" && ledgerMonthKey(t.date) === month),
-  );
-  const monthRefund = sumBaseAmounts(
-    txns.filter((t) => t.type === "refund" && ledgerMonthKey(t.date) === month),
-  );
-  const monthNetExpense = {
-    cents: monthExpenseGross.cents - monthRefund.cents,
-    currency: baseCurrencyOf(txns.filter((t) => ledgerMonthKey(t.date) === month)),
-  };
 
-  // 按分类净支出：退款的 categoryId 与原支出一致，直接按其 categoryId 冲减
-  const expenseByCat = cats
-    .filter((c) => c.kind === "expense" && c.active)
-    .map((c) => ({
-      cat: c,
-      total:
-        sumCents(
-          txns.filter((t) => t.type === "expense" && t.categoryId === c.id).map((t) => t.baseAmountCents),
-        ) -
-        sumCents(
-          txns.filter((t) => t.type === "refund" && t.categoryId === c.id).map((t) => t.baseAmountCents),
-        ),
-    }))
-    .filter((x) => x.total > 0n)
-    // bigint 比较排序（不做 number 减法，避免超界失真）
-    .sort((a, b) => (a.total === b.total ? 0 : b.total > a.total ? 1 : -1));
-  const maxCat = expenseByCat[0]?.total ?? 1n;
+  const isCurrentMonth = selectedMonth === currentMonth;
+  const monthLabel = formatSpacedMonthLabel(selectedMonth);
+  const incomeLabel = isCurrentMonth ? "本月收入" : "所选月收入";
+  const netExpenseLabel = isCurrentMonth ? "本月净支出" : "所选月净支出";
 
   const reviewingBatches = batches.filter((b) => b.status === "reviewing");
   const openSplits = splitList.filter((s) => s.status === "open");
   const latestBackup = backupList[0];
 
-  const recent = [...txns].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 8);
-
   const statCards = [
-    { label: "总资产", cents: totalAssetCents, currency: "CNY", icon: Landmark, note: "人民币资产账户合计（外币另计）" },
-    { label: "总负债", cents: totalLiabilityCents, currency: "CNY", icon: CreditCard, note: "含房贷" },
-    { label: "本月收入", cents: monthIncome.cents, currency: monthIncome.currency, icon: TrendingUp, note: monthLabel },
-    { label: "本月净支出", cents: monthNetExpense.cents, currency: monthNetExpense.currency, icon: ShoppingBag, note: monthLabel },
+    { label: "总资产", cents: overview.totalAssetCents, currency: "CNY", icon: Landmark, note: "人民币资产账户合计（外币另计）", kind: "neutral" as const },
+    { label: "总负债", cents: overview.totalLiabilityCents, currency: "CNY", icon: CreditCard, note: "含房贷", kind: "neutral" as const },
+    { label: incomeLabel, cents: overview.monthIncomeCents, currency: overview.baseCurrency, icon: TrendingUp, note: monthLabel, kind: "income" as const },
+    { label: netExpenseLabel, cents: overview.monthNetExpenseCents, currency: overview.baseCurrency, icon: ShoppingBag, note: monthLabel, kind: "expense" as const },
   ];
 
   return (
     <>
       {/* 统计卡 */}
       <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-        {statCards.map(({ label, cents, currency, icon: Icon, note }) => (
+        {statCards.map(({ label, cents, currency, icon: Icon, note, kind }) => (
           <Card key={label} className="p-5 transition-shadow hover:shadow-pop">
             <div className="flex items-center gap-2 text-xs text-ink-faint">
               <span className="flex h-6 w-6 items-center justify-center rounded-md bg-accent-soft text-accent-ink">
@@ -147,44 +128,93 @@ function DashboardContent({ data }: { data: DashboardData }) {
               {label}
             </div>
             <p className="mt-2 text-[1.35rem] font-medium leading-tight tracking-tight">
-              <Amount
-                cents={cents}
-                currency={currency}
-                kind={label === "本月收入" ? "income" : label === "本月净支出" ? "expense" : "neutral"}
-              />
+              <Amount cents={cents} currency={currency} kind={kind} />
             </p>
             <p className="mt-1 text-xs text-ink-faint">{note}</p>
           </Card>
         ))}
       </div>
 
+      {/* 现金流脉搏、环比支出核对与外币账户原币余额 */}
+      <CashflowInsightCard
+        overview={overview}
+        currentMonth={currentMonth}
+        latestActiveMonth={latestActiveMonth}
+        onSelectMonth={onSelectMonth}
+      />
+
       {/* 分类支出 + 待办 */}
       <div className="mt-4 grid gap-4 xl:grid-cols-2">
         <Card className="p-5">
-          <SectionTitle title="按分类支出" />
-          <div className="space-y-3">
-            {expenseByCat.map(({ cat, total }) => {
-              const Icon = dataIcon(cat.icon);
-              return (
-                <div key={cat.id} className="flex items-center gap-3">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-ink">
-                    <Icon className="h-4 w-4" />
-                  </span>
-                  <span className="w-20 shrink-0 text-sm text-ink">{cat.name}</span>
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-900/5">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-accent/70 to-accent"
-                      // 仅绘图比例允许有界近似：比值 ≤1，先放大 1e4 再整除，结果必然安全
-                      style={{ width: `${Math.max(4, Number((total * 10000n) / maxCat) / 100)}%` }}
-                    />
+          <SectionTitle
+            title="按分类支出"
+            action={
+              <div className="inline-flex rounded-lg bg-slate-900/5 p-0.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setCatScope("month")}
+                  className={
+                    catScope === "month"
+                      ? "rounded-md bg-white px-2 py-0.5 font-medium text-ink shadow-sm"
+                      : "px-2 py-0.5 text-ink-faint hover:text-ink"
+                  }
+                >
+                  当期
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCatScope("all")}
+                  className={
+                    catScope === "all"
+                      ? "rounded-md bg-white px-2 py-0.5 font-medium text-ink shadow-sm"
+                      : "px-2 py-0.5 text-ink-faint hover:text-ink"
+                  }
+                >
+                  全部
+                </button>
+              </div>
+            }
+          />
+          {overview.expenseByCategory.length === 0 ? (
+            <EmptyState
+              title={catScope === "month" ? "该账期暂无分类支出" : "暂无支出记录"}
+              hint={
+                catScope === "month" && txns.some((t) => t.type === "expense")
+                  ? "可切换至「全部」或选择有流水的历史账期查看"
+                  : "导入账单或记一笔支出后将在此汇总"
+              }
+              action={
+                catScope === "month" && txns.some((t) => t.type === "expense") ? (
+                  <Button size="sm" variant="secondary" onClick={() => setCatScope("all")}>
+                    查看全部历史分类
+                  </Button>
+                ) : undefined
+              }
+            />
+          ) : (
+            <div className="space-y-3">
+              {overview.expenseByCategory.map(({ cat, total, barWidthPct }) => {
+                const Icon = dataIcon(cat.icon);
+                return (
+                  <div key={cat.id} className="flex items-center gap-3">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-ink">
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span className="w-20 shrink-0 text-sm text-ink">{cat.name}</span>
+                    <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-900/5">
+                      <div
+                        className="h-full rounded-full bg-gradient-to-r from-accent/70 to-accent"
+                        style={{ width: `${barWidthPct}%` }}
+                      />
+                    </div>
+                    <span className="w-24 shrink-0 text-right text-sm">
+                      <Amount cents={total} />
+                    </span>
                   </div>
-                  <span className="w-24 shrink-0 text-right text-sm">
-                    <Amount cents={total} />
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </Card>
 
         <Card className="p-5">
@@ -255,59 +285,77 @@ function DashboardContent({ data }: { data: DashboardData }) {
             </Link>
           }
         />
-        <table className="w-full text-sm">
-          <thead className="text-xs text-ink-faint">
-            <tr className="border-b border-slate-900/10">
-              <th className="py-2 text-left font-medium">日期</th>
-              <th className="py-2 text-left font-medium">类型</th>
-              <th className="py-2 text-left font-medium">商户</th>
-              <th className="py-2 text-left font-medium">分类</th>
-              <th className="py-2 text-left font-medium">账户</th>
-              <th className="py-2 text-right font-medium">金额</th>
-              <th className="py-2 text-right font-medium">来源</th>
-            </tr>
-          </thead>
-          <tbody>
-            {recent.map((t) => {
-              const meta = typeMeta[t.type];
-              return (
-                <tr key={t.id} className="border-b border-slate-900/5 last:border-0 hover:bg-white/60">
-                  <td className="py-2.5 pr-2 text-ink-soft">{fmtDate(t.date)}</td>
-                  <td className="py-2.5 pr-2"><Badge tone={meta.tone}>{meta.label}</Badge></td>
-                  <td className="py-2.5 pr-2 text-ink">{t.payee}</td>
-                  <td className="py-2.5 pr-2 text-ink-soft">
-                    {t.type === "transfer" ? "—" : categoryName(t.categoryId)}
-                  </td>
-                  <td className="py-2.5 pr-2 text-ink-soft">{mainAccountName(t, accts)}</td>
-                  <td className="py-2.5 pr-2 text-right">
-                    <Amount
-                      cents={t.baseAmountCents}
-                      currency={t.baseCurrency}
-                      kind={t.type === "expense" ? "expense" : t.type === "income" ? "income" : "neutral"}
-                    />
-                    {t.currency !== t.baseCurrency && (
-                      <span className="block text-xs text-ink-faint">
-                        原币 <Amount cents={t.amountCents} currency={t.currency} />
-                      </span>
-                    )}
-                  </td>
-                  <td className="py-2.5 text-right">
-                    <Badge tone={t.source === "import" ? "accent" : "neutral"}>
-                      {t.source === "import" ? "导入" : "手动"}
-                    </Badge>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        {overview.recentTxns.length === 0 ? (
+          <EmptyState
+            icon={<Receipt className="h-8 w-8" />}
+            title="账本中还没有交易记录"
+            hint="前往「导入与确认」上传账单，或在「账目与分录」中手动记一笔"
+            action={
+              <Link
+                to="/imports"
+                className="glass inline-flex h-8 items-center rounded-xl px-3 text-xs font-medium text-ink transition hover:bg-white/90"
+              >
+                去导入账单
+              </Link>
+            }
+          />
+        ) : (
+          <table className="w-full text-sm">
+            <thead className="text-xs text-ink-faint">
+              <tr className="border-b border-slate-900/10">
+                <th className="py-2 text-left font-medium">日期</th>
+                <th className="py-2 text-left font-medium">类型</th>
+                <th className="py-2 text-left font-medium">商户</th>
+                <th className="py-2 text-left font-medium">分类</th>
+                <th className="py-2 text-left font-medium">账户</th>
+                <th className="py-2 text-right font-medium">金额</th>
+                <th className="py-2 text-right font-medium">来源</th>
+              </tr>
+            </thead>
+            <tbody>
+              {overview.recentTxns.map((t) => {
+                const meta = typeMeta[t.type];
+                return (
+                  <tr key={t.id} className="border-b border-slate-900/5 last:border-0 hover:bg-white/60">
+                    <td className="py-2.5 pr-2 text-ink-soft">{fmtDate(t.date)}</td>
+                    <td className="py-2.5 pr-2"><Badge tone={meta.tone}>{meta.label}</Badge></td>
+                    <td className="py-2.5 pr-2 text-ink">{t.payee}</td>
+                    <td className="py-2.5 pr-2 text-ink-soft">
+                      {t.type === "transfer" ? "—" : categoryName(t.categoryId)}
+                    </td>
+                    <td className="py-2.5 pr-2 text-ink-soft">{mainAccountName(t, accts)}</td>
+                    <td className="py-2.5 pr-2 text-right">
+                      <Amount
+                        cents={t.baseAmountCents}
+                        currency={t.baseCurrency}
+                        kind={t.type === "expense" ? "expense" : t.type === "income" ? "income" : "neutral"}
+                      />
+                      {t.currency !== t.baseCurrency && (
+                        <span className="block text-xs text-ink-faint">
+                          原币 <Amount cents={t.amountCents} currency={t.currency} />
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2.5 text-right">
+                      <Badge tone={t.source === "import" ? "accent" : "neutral"}>
+                        {t.source === "import" ? "导入" : "手动"}
+                      </Badge>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
       </Card>
     </>
   );
 }
 
 export default function DashboardPage() {
-  // 统计与最近交易由 listTransactions()+listAccounts() 前端聚合；上线后换后端聚合接口
+  const currentMonth = currentLedgerMonthKey();
+  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+
   const { data, loading, error, retry } = useApiQuery<DashboardData>(
     async () => {
       const [txns, accts, cats, batches, splitList, backupList] = await Promise.all([
@@ -323,9 +371,32 @@ export default function DashboardPage() {
     [],
   );
 
+  const availableMonths = useMemo(
+    () => selectAvailableLedgerMonths(data?.txns ?? [], currentMonth),
+    [data?.txns, currentMonth],
+  );
+
   return (
     <div>
-      <AdminHeader title="仪表盘" desc="家庭财务总览" />
+      <AdminHeader
+        title="仪表盘"
+        desc="家庭财务总览"
+        action={
+          availableMonths.length > 0 ? (
+            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+              <SelectTrigger className="w-44" aria-label="选择统计账期月" />
+              <SelectContent>
+                {availableMonths.map((m) => (
+                  <SelectItem key={m} value={m}>
+                    {formatCompactMonthLabel(m)}
+                    {m === currentMonth ? "（本月）" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          ) : undefined
+        }
+      />
       {loading ? (
         <>
           <StatCardsSkeleton />
@@ -337,7 +408,12 @@ export default function DashboardPage() {
           <ErrorState title="仪表盘加载失败" desc={error.message} onRetry={retry} />
         </Card>
       ) : data ? (
-        <DashboardContent data={data} />
+        <DashboardContent
+          data={data}
+          selectedMonth={selectedMonth}
+          currentMonth={currentMonth}
+          onSelectMonth={setSelectedMonth}
+        />
       ) : null}
     </div>
   );

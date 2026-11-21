@@ -103,3 +103,27 @@ export function shiftLedgerDateKey(dateKey: string, deltaDays: number): string {
   const t = Date.parse(`${dateKey}T00:00:00Z`) + deltaDays * 86_400_000;
   return new Date(t).toISOString().slice(0, 10);
 }
+
+/** UTC ISO → 上海挂钟 datetime-local 输入串（YYYY-MM-DDTHH:mm） */
+export function isoToShanghaiDateTimeInput(iso: string): string {
+  return fmtLedgerDateTime(iso).replace(" ", "T");
+}
+
+/**
+ * 上海挂钟 datetime-local 输入串（YYYY-MM-DDTHH:mm）→ UTC ISO 字符串。
+ * 通过上海固定偏移 +08:00 解析并做挂钟回环核对，拦截 2月30日 等非法日历进位，与设备时区无关。
+ */
+export function shanghaiDateTimeInputToIso(input: string): string | null {
+  const trimmed = input.trim();
+  const m = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?$/.exec(trimmed);
+  if (!m) return null;
+  const [, year, month, day, hour, minute, second] = m;
+  const withOffset = `${year}-${month}-${day}T${hour}:${minute}:${second ?? "00"}+08:00`;
+  const ms = new Date(withOffset).getTime();
+  if (Number.isNaN(ms)) return null;
+  const iso = new Date(ms).toISOString();
+  if (fmtLedgerDateTime(iso) !== `${year}-${month}-${day} ${hour}:${minute}`) {
+    return null;
+  }
+  return iso;
+}

@@ -20,6 +20,7 @@ import {
 import { ApiError } from "@/api/client";
 import { validateTransaction, type TxnError, type TxnField } from "@/lib/validate-txn";
 import { parseDecimalCents, parsePositiveCents } from "@/lib/decimal";
+import { shanghaiDateTimeInputToIso } from "@/lib/ledger-date";
 import type { Transaction } from "@/data/types";
 
 const typeMeta: Record<Transaction["type"], { label: string; tone: "neutral" | "accent" | "warn" }> = {
@@ -73,10 +74,11 @@ export default function TxnsPage() {
   const [keyword, setKeyword] = useState("");
   const [detail, setDetail] = useState<Transaction | null>(null);
   const [addOpen, setAddOpen] = useState(false);
-  const [form, setForm] = useState({ type: "expense", payee: "", amount: "", baseAmount: "", categoryId: "none", accountId: "", toAccountId: "", refundOf: "", note: "", currency: "CNY" });
+  const [form, setForm] = useState({ type: "expense", payee: "", amount: "", baseAmount: "", categoryId: "none", accountId: "", toAccountId: "", refundOf: "", note: "", date: "", currency: "CNY" });
   const [formErrors, setFormErrors] = useState<TxnError[]>([]);
-  // 外币账户必填的「折合人民币金额（CNY）」字段级报错（lib/validate-txn 由他人维护，不扩展其字段）
+  // 外币账户必填的「折合人民币金额（CNY）」与补记日期字段级报错
   const [baseAmountError, setBaseAmountError] = useState<string | null>(null);
+  const [dateError, setDateError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -218,6 +220,16 @@ export default function TxnsPage() {
       baseAmountCents = parsedBase.cents;
     }
 
+    let resolvedDateIso = new Date().toISOString();
+    if (form.date.trim()) {
+      const parsedDate = shanghaiDateTimeInputToIso(form.date);
+      if (!parsedDate) {
+        setDateError("请输入有效的交易日期时间（上海时间）");
+        return;
+      }
+      resolvedDateIso = parsedDate;
+    }
+
     const input: NewTransactionInput = {
       type,
       payee: form.payee.trim(),
@@ -235,15 +247,16 @@ export default function TxnsPage() {
       currency: txnCurrency ?? "CNY",
       // CNY 交易不提交 baseAmountCents（后端按 1:1 入账）；fxRate 不传
       ...(baseAmountCents !== undefined ? { baseAmountCents } : {}),
-      date: new Date().toISOString(),
+      date: resolvedDateIso,
     };
     setSubmitting(true);
     setSubmitError(null);
     try {
       await createTransaction(input);
       setAddOpen(false);
-      setForm({ type: "expense", payee: "", amount: "", baseAmount: "", categoryId: "none", accountId: "", toAccountId: "", refundOf: "", note: "", currency: "CNY" });
+      setForm({ type: "expense", payee: "", amount: "", baseAmount: "", categoryId: "none", accountId: "", toAccountId: "", refundOf: "", note: "", date: "", currency: "CNY" });
       setBaseAmountError(null);
+      setDateError(null);
       retry();
     } catch (e) {
       setSubmitError(errMsg(e));
@@ -577,6 +590,18 @@ export default function TxnsPage() {
                 value={form.note}
                 onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
                 placeholder="选填"
+                className={inputCls}
+              />
+            </Field>
+            <Field label="交易时间（选填，留空按此刻·上海时间）" error={dateError ?? undefined}>
+              <input
+                type="datetime-local"
+                aria-label="交易时间（上海时间）"
+                value={form.date}
+                onChange={(e) => {
+                  setForm((f) => ({ ...f, date: e.target.value }));
+                  setDateError(null);
+                }}
                 className={inputCls}
               />
             </Field>
