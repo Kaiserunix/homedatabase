@@ -18,6 +18,7 @@ const schemaFixtures = JSON.parse(readUtf8("contracts/fixtures/schemas.json"));
 const schemaGenTsText = readUtf8("frontend/src/api/schema.gen.ts");
 const typesTsText = readUtf8("frontend/src/data/types.ts");
 const resourcesTsText = readUtf8("frontend/src/api/resources.ts");
+const httpTsText = readUtf8("frontend/src/api/http.ts");
 
 const generatedSchemaTsText = astToString(await openapiTS(spec));
 
@@ -29,6 +30,7 @@ const errors = [
     schemaGenTsText,
     typesTsText,
     resourcesTsText,
+    httpTsText,
     generatedSchemaTsText,
   }),
   ...validateFixtureCorpus(spec, schemaFixtures),

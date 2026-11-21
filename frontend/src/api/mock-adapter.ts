@@ -13,7 +13,8 @@ import {
 } from "@/data/mock";
 import type {
   Account, AccountCreateInput, AccountGrant, AccountUpdateInput, AuthSession,
-  BackupRecord, Category, CategoryCreateInput, CategoryUpdateInput, ImportBatch,
+  BackupRecord, CashflowRadarInput, CashflowRadarResult, Category, CategoryCreateInput,
+  CategoryUpdateInput, CfoAskInput, CfoAskResult, CfoCapabilities, ImportBatch,
   ImportCandidate, ImportCandidatePatch, ImportJob, Member, NewSplitInput,
   NewTransactionInput, Passkey, PeriodLock, PeriodLockInput, ReportTier, ReportTierMeta,
   Split, SplitResponseInput, SplitShareUpdateInput, Transaction, TransactionUpdateInput,
@@ -770,5 +771,109 @@ export const mockApi = {
 
   exportReport(tier: ReportTier, range: ReportRange): Promise<Blob> {
     return mockResolve(new Blob([`mock report tier=${tier} ${range.from}~${range.to}`], { type: "text/plain" }));
+  },
+
+  // ==================== AI CFO ====================
+  getCfoCapabilities(): Promise<CfoCapabilities> {
+    return mockResolve<CfoCapabilities>({
+      ocrEnabled: false,
+      ocrProvider: "disabled",
+      cfoProvider: "local-deterministic",
+      externalLlmEnabled: false,
+      supportedIntents: [
+        "overview",
+        "spending_change",
+        "frequency_vs_ticket",
+        "financial_memory",
+        "large_expenses",
+      ],
+      privacyBoundary: "纯本地确定性模式：零外部 AI 调用，全部意图解析、整数核算与来源追溯均在本机完成",
+    });
+  },
+
+  askCfo(input: CfoAskInput): Promise<CfoAskResult> {
+    const asOf = input.asOfDate ?? "2026-08-31";
+    const monthStart = `${asOf.slice(0, 7)}-01`;
+    const scope = input.scope ?? "all";
+    return mockResolve<CfoAskResult>({
+      question: input.question,
+      intent: "overview",
+      provider: "local-deterministic",
+      answer: "演示模式下根据本地可见流水生成确定性收支摘要。",
+      assumptions: ["演示模式仅基于内存样例流水计算，未访问外部模型。"],
+      resolvedQuery: {
+        startsOn: monthStart,
+        endsOn: asOf,
+        comparisonStartsOn: null,
+        comparisonEndsOn: null,
+        scope,
+        accountIds: input.accountId ? [input.accountId] : accounts.map((a) => a.id),
+        categoryIds: [],
+        keyword: null,
+      },
+      metrics: {
+        grossExpenseCents: 326_40,
+        linkedRefundCents: 0,
+        netExpenseCents: 326_40,
+        splitReimbursedCents: 0,
+        ownBurdenCents: 326_40,
+        incomeCents: 0,
+        netCashflowCents: -326_40,
+        expenseCount: 1,
+        averageExpenseCents: 326_40,
+        previousNetExpenseCents: null,
+        netExpenseDeltaCents: null,
+        previousExpenseCount: null,
+        previousAverageExpenseCents: null,
+        primaryGrowthDriver: "none",
+      },
+      topChanges: [],
+      citations: [],
+    });
+  },
+
+  getCashflowRadar(input: CashflowRadarInput = {}): Promise<CashflowRadarResult> {
+    const asOf = input.asOfDate ?? "2026-08-31";
+    const horizonDays = input.horizonDays ?? 90;
+    const minSafe = input.minimumSafeBalanceCents ?? 0;
+    const startingBalance = accounts
+      .filter((a) => a.currency === "CNY" && a.kind === "asset")
+      .reduce((sum, a) => sum + a.balanceCents, 0);
+    const makeScenario = (
+      scenario: "baseline" | "conservative" | "stress",
+      delta: number,
+    ) => ({
+      scenario,
+      endingBalanceCents: startingBalance + delta,
+      lowestBalanceCents: Math.min(startingBalance, startingBalance + delta),
+      tightestWeekStart: asOf,
+      breachesSafeBalance: Math.min(startingBalance, startingBalance + delta) < minSafe,
+      weeklyBuckets: [
+        {
+          weekIndex: 1,
+          startsOn: asOf,
+          endsOn: asOf,
+          inflowCents: 0,
+          outflowCents: Math.max(0, -delta),
+          netCents: delta,
+          closingBalanceCents: startingBalance + delta,
+        },
+      ],
+    });
+    return mockResolve<CashflowRadarResult>({
+      asOfDate: asOf,
+      horizonDays,
+      startingLiquidBalanceCents: startingBalance,
+      excludedForeignAccountIds: accounts.filter((a) => a.currency !== "CNY").map((a) => a.id),
+      dailyDiscretionaryExpenseCents: 50_00,
+      recurringCandidates: [],
+      scenarios: [
+        makeScenario("baseline", -350_00),
+        makeScenario("conservative", -420_00),
+        makeScenario("stress", -525_00),
+      ],
+      riskAlerts: [],
+      assumptions: ["演示模式仅基于内存人民币资产余额推演。"],
+    });
   },
 };

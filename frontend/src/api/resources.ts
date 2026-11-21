@@ -11,7 +11,8 @@ import { httpApi, type ReportRange, type TransactionFilter } from "./http";
 import { mockApi, setMockLatency } from "./mock-adapter";
 import type {
   Account, AccountCreateInput, AccountGrant, AccountUpdateInput, AuthSession,
-  BackupRecord, Category, CategoryCreateInput, CategoryUpdateInput, ImportBatch,
+  BackupRecord, CashflowRadarInput, CashflowRadarResult, Category, CategoryCreateInput,
+  CategoryUpdateInput, CfoAskInput, CfoAskResult, CfoCapabilities, ImportBatch,
   ImportCandidate, ImportCandidatePatch, ImportJob, Member, NewSplitInput,
   NewTransactionInput, Passkey, PeriodLock, PeriodLockInput, ReportTier, ReportTierMeta,
   Split, SplitResponseInput, SplitShareUpdateInput, Transaction, TransactionUpdateInput,
@@ -19,9 +20,10 @@ import type {
 } from "@/data/types";
 
 export type {
-  AccountCreateInput, AccountUpdateInput, CategoryCreateInput, CategoryUpdateInput,
-  ImportCandidatePatch, NewSplitInput, NewTransactionInput, PeriodLockInput,
-  SplitResponseInput, SplitShareUpdateInput, TransactionUpdateInput,
+  AccountCreateInput, AccountUpdateInput, CashflowRadarInput, CategoryCreateInput,
+  CategoryUpdateInput, CfoAskInput, ImportCandidatePatch, NewSplitInput, NewTransactionInput,
+  PeriodLockInput, PlannedCashflowEventInput, SplitResponseInput, SplitShareUpdateInput,
+  TransactionUpdateInput,
 } from "@/data/types";
 
 export type { ReportRange, TransactionFilter };
@@ -200,3 +202,13 @@ export const listReportTiers = (): Promise<ReportTierMeta[]> =>
 
 export const exportReport = (tier: ReportTier, range: ReportRange): Promise<Blob> =>
   activeAdapter().exportReport(tier, range);
+
+// ==================== AI CFO ====================
+export const getCfoCapabilities = (): Promise<CfoCapabilities> =>
+  activeAdapter().getCfoCapabilities();
+
+export const askCfo = (input: CfoAskInput): Promise<CfoAskResult> =>
+  activeAdapter().askCfo(input);
+
+export const getCashflowRadar = (input: CashflowRadarInput = {}): Promise<CashflowRadarResult> =>
+  activeAdapter().getCashflowRadar(input);

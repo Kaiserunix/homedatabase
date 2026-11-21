@@ -34,6 +34,7 @@ export interface FrontendDriftInput {
   schemaGenTsText: string;
   typesTsText: string;
   resourcesTsText: string;
+  httpTsText?: string | null;
   generatedSchemaTsText?: string | null;
 }
 

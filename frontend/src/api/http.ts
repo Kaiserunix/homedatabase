@@ -5,7 +5,8 @@
 import { apiFetch } from "./client";
 import type {
   Account, AccountCreateInput, AccountGrant, AccountUpdateInput, AuthSession,
-  BackupRecord, Category, CategoryCreateInput, CategoryUpdateInput, ImportBatch,
+  BackupRecord, CashflowRadarInput, CashflowRadarResult, Category, CategoryCreateInput,
+  CategoryUpdateInput, CfoAskInput, CfoAskResult, CfoCapabilities, ImportBatch,
   ImportCandidate, ImportCandidatePatch, ImportJob, Member, NewSplitInput,
   NewTransactionInput, Passkey, PeriodLock, PeriodLockInput, ReportTier, ReportTierMeta,
   Split, SplitResponseInput, SplitShareUpdateInput, Transaction, TransactionUpdateInput,
@@ -273,5 +274,18 @@ export const httpApi = {
     return apiFetch<Blob>("/reports/export", {
       params: { tier, from: range.from, to: range.to },
     });
+  },
+
+  // ==================== AI CFO ====================
+  getCfoCapabilities(): Promise<CfoCapabilities> {
+    return apiFetch<CfoCapabilities>("/cfo/capabilities");
+  },
+
+  askCfo(input: CfoAskInput): Promise<CfoAskResult> {
+    return apiFetch<CfoAskResult>("/cfo/ask", { method: "POST", body: input });
+  },
+
+  getCashflowRadar(input: CashflowRadarInput = {}): Promise<CashflowRadarResult> {
+    return apiFetch<CashflowRadarResult>("/cfo/cashflow-radar", { method: "POST", body: input });
   },
 };

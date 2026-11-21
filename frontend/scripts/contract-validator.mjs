@@ -312,16 +312,19 @@ export function parseSchemaGenSchemas(tsText) {
   return result;
 }
 
-export function parseResourcesCalls(resourcesText) {
-  const fnMatches = [...resourcesText.matchAll(/^export function ([A-Za-z0-9_]+)\(/gm)];
+export function parseResourcesCalls(transportText) {
+  let fnMatches = [...transportText.matchAll(/^export function ([A-Za-z0-9_]+)\(/gm)];
+  if (fnMatches.length === 0) {
+    fnMatches = [...transportText.matchAll(/^  ([A-Za-z0-9_]+)\(/gm)];
+  }
   const apiPattern =
     /apiFetch(?:<[^>]+>)?\(\s*([`"'])([^`"']+)\1(?:\s*,\s*\{([\s\S]*?)\}\s*\))?/g;
   const calls = [];
   for (let i = 0; i < fnMatches.length; i += 1) {
     const fnName = fnMatches[i][1];
     const start = fnMatches[i].index + fnMatches[i][0].length;
-    const end = i + 1 < fnMatches.length ? fnMatches[i + 1].index : resourcesText.length;
-    const body = resourcesText.slice(start, end);
+    const end = i + 1 < fnMatches.length ? fnMatches[i + 1].index : transportText.length;
+    const body = transportText.slice(start, end);
     for (const cm of body.matchAll(apiPattern)) {
       const rawPath = cm[2];
       const opts = cm[3] ?? "";
@@ -335,6 +338,12 @@ export function parseResourcesCalls(resourcesText) {
   return calls;
 }
 
+function parseExportedResourceFns(resourcesText) {
+  return new Set(
+    [...resourcesText.matchAll(/^export (?:const|function) ([A-Za-z0-9_]+)\b/gm)].map((m) => m[1]),
+  );
+}
+
 function setDiff(a, b) {
   return [...a].filter((x) => !b.has(x)).sort();
 }
@@ -345,6 +354,7 @@ export function validateFrontendContractDrift({
   schemaGenTsText,
   typesTsText,
   resourcesTsText,
+  httpTsText = null,
   generatedSchemaTsText = null,
 }) {
   const errors = [];
@@ -451,8 +461,10 @@ export function validateFrontendContractDrift({
     }
   }
 
-  // 5. resources.ts vs openapi.yaml & endpoints.json
-  const clientCalls = parseResourcesCalls(resourcesTsText);
+  // 5. http.ts / resources.ts vs openapi.yaml & endpoints.json
+  const transportText = httpTsText ?? resourcesTsText;
+  const clientCalls = parseResourcesCalls(transportText);
+  const exportedResourceFns = parseExportedResourceFns(resourcesTsText);
   const clientByKey = new Map();
   for (const call of clientCalls) {
     const normOpenApi = `/api${call.normPath}`;
@@ -460,11 +472,11 @@ export function validateFrontendContractDrift({
       (p) => p.replace(/\{[^}]+\}/g, "{}") === normOpenApi,
     );
     if (!matchedPath) {
-      errors.push(`resources.ts ${call.fnName} calls unknown endpoint ${call.method} ${call.normPath}`);
+      errors.push(`http.ts ${call.fnName} calls unknown endpoint ${call.method} ${call.normPath}`);
       continue;
     }
     if (!(call.method.toLowerCase() in spec.paths[matchedPath])) {
-      errors.push(`resources.ts ${call.fnName} uses invalid method ${call.method} on ${matchedPath}`);
+      errors.push(`http.ts ${call.fnName} uses invalid method ${call.method} on ${matchedPath}`);
       continue;
     }
     if (matchedPath === "/api/imports" && call.method === "POST") {
@@ -472,12 +484,12 @@ export function validateFrontendContractDrift({
       const declaredFields = new Set(Object.keys(uploadSchema?.properties ?? {}));
       for (const field of call.formFields) {
         if (!declaredFields.has(field)) {
-          errors.push(`resources.ts ${call.fnName} appends undeclared multipart field ${field}`);
+          errors.push(`http.ts ${call.fnName} appends undeclared multipart field ${field}`);
         }
       }
       for (const reqField of uploadSchema?.required ?? []) {
         if (!call.formFields.includes(reqField)) {
-          errors.push(`resources.ts ${call.fnName} misses required multipart field ${reqField}`);
+          errors.push(`http.ts ${call.fnName} misses required multipart field ${reqField}`);
         }
       }
     }
@@ -489,7 +501,11 @@ export function validateFrontendContractDrift({
     const actualFn = clientByKey.get(key) ?? null;
     if (actualFn !== entry.resourceFn) {
       errors.push(
-        `resources.ts drift for ${key}: expected ${JSON.stringify(entry.resourceFn)}, found ${JSON.stringify(actualFn)}`,
+        `http.ts drift for ${key}: expected ${JSON.stringify(entry.resourceFn)}, found ${JSON.stringify(actualFn)}`,
+      );
+    } else if (entry.resourceFn && !exportedResourceFns.has(entry.resourceFn)) {
+      errors.push(
+        `resources.ts missing exported facade fn ${JSON.stringify(entry.resourceFn)} for ${key}`,
       );
     }
   }

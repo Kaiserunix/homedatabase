@@ -716,6 +716,52 @@
       "responseIsArray": false,
       "queryParams": ["tier", "from", "to"],
       "pathParams": []
+    },
+    {
+      "method": "GET",
+      "openApiPath": "/api/cfo/capabilities",
+      "clientPath": "/cfo/capabilities",
+      "resourceFn": "getCfoCapabilities",
+      "opsOnly": false,
+      "requiresAuth": true,
+      "successStatus": 200,
+      "responseContentType": "application/json",
+      "responseSchema": "CfoCapabilitiesOut",
+      "responseIsArray": false,
+      "queryParams": [],
+      "pathParams": []
+    },
+    {
+      "method": "POST",
+      "openApiPath": "/api/cfo/ask",
+      "clientPath": "/cfo/ask",
+      "resourceFn": "askCfo",
+      "opsOnly": false,
+      "requiresAuth": true,
+      "successStatus": 200,
+      "requestContentType": "application/json",
+      "requestSchema": "CfoAskInput",
+      "responseContentType": "application/json",
+      "responseSchema": "CfoAskOut",
+      "responseIsArray": false,
+      "queryParams": [],
+      "pathParams": []
+    },
+    {
+      "method": "POST",
+      "openApiPath": "/api/cfo/cashflow-radar",
+      "clientPath": "/cfo/cashflow-radar",
+      "resourceFn": "getCashflowRadar",
+      "opsOnly": false,
+      "requiresAuth": true,
+      "successStatus": 200,
+      "requestContentType": "application/json",
+      "requestSchema": "CashflowRadarInput",
+      "responseContentType": "application/json",
+      "responseSchema": "CashflowRadarOut",
+      "responseIsArray": false,
+      "queryParams": [],
+      "pathParams": []
     }
   ]
 }

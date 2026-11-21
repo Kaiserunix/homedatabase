@@ -418,9 +418,11 @@ def _parse_schema_gen_schemas(ts_text: str) -> dict[str, set[str]]:
     return result
 
 
-def _parse_resources_api_calls(resources_text: str) -> list[tuple[str, str, str]]:
-    """Extract (exported_fn_name, HTTP_METHOD, normalized_path) for apiFetch calls."""
-    fn_matches = list(re.finditer(r"^export function ([A-Za-z0-9_]+)\(", resources_text, re.M))
+def _parse_resources_api_calls(transport_text: str) -> list[tuple[str, str, str]]:
+    """Extract (fn_name, HTTP_METHOD, normalized_path) for apiFetch calls."""
+    fn_matches = list(re.finditer(r"^export function ([A-Za-z0-9_]+)\(", transport_text, re.M))
+    if not fn_matches:
+        fn_matches = list(re.finditer(r"^  ([A-Za-z0-9_]+)\(", transport_text, re.M))
     calls: list[tuple[str, str, str]] = []
     api_pattern = re.compile(
         r'apiFetch(?:<[^>]+>)?\(\s*([`"\'])([^`"\']+)\1'
@@ -430,8 +432,8 @@ def _parse_resources_api_calls(resources_text: str) -> list[tuple[str, str, str]
     for idx, fn_m in enumerate(fn_matches):
         fn_name = fn_m.group(1)
         start = fn_m.end()
-        end = fn_matches[idx + 1].start() if idx + 1 < len(fn_matches) else len(resources_text)
-        fn_body = resources_text[start:end]
+        end = fn_matches[idx + 1].start() if idx + 1 < len(fn_matches) else len(transport_text)
+        fn_body = transport_text[start:end]
         for call_m in api_pattern.finditer(fn_body):
             raw_path = call_m.group(2)
             opts = call_m.group(3) or ""
@@ -442,20 +444,27 @@ def _parse_resources_api_calls(resources_text: str) -> list[tuple[str, str, str]
     return calls
 
 
+def _parse_exported_resource_fns(resources_text: str) -> set[str]:
+    """Extract exported facade function names from frontend/src/api/resources.ts."""
+    return set(re.findall(r"^export (?:const|function) ([A-Za-z0-9_]+)\b", resources_text, re.M))
+
+
 def validate_frontend_contract_drift(
     repo_root: Path,
     spec: dict[str, Any],
     endpoints_manifest: dict[str, Any],
 ) -> list[str]:
-    """Verify frontend schema.gen.ts, types.ts, resources.ts, and endpoints.json match OpenAPI."""
+    """Verify frontend schema.gen.ts, types.ts, http.ts, resources.ts, and endpoints.json align."""
     errors: list[str] = []
     schema_gen_path = repo_root / "frontend/src/api/schema.gen.ts"
     types_path = repo_root / "frontend/src/data/types.ts"
     resources_path = repo_root / "frontend/src/api/resources.ts"
+    http_path = repo_root / "frontend/src/api/http.ts"
 
     schema_gen_text = schema_gen_path.read_text(encoding="utf-8")
     types_text = types_path.read_text(encoding="utf-8")
     resources_text = resources_path.read_text(encoding="utf-8")
+    transport_text = http_path.read_text(encoding="utf-8") if http_path.exists() else resources_text
 
     # 1. schema.gen.ts paths & methods vs openapi.yaml
     gen_paths = _parse_schema_gen_paths(schema_gen_text)
@@ -548,8 +557,9 @@ def validate_frontend_contract_drift(
         if bool(op.get("security")) != bool(entry["requiresAuth"]):
             errors.append(f"endpoints.json {method} {path}: requiresAuth mismatch")
 
-    # 5. resources.ts apiFetch calls vs openapi.yaml & endpoints.json
-    client_calls = _parse_resources_api_calls(resources_text)
+    # 5. http.ts / resources.ts apiFetch calls vs openapi.yaml & endpoints.json
+    client_calls = _parse_resources_api_calls(transport_text)
+    exported_resource_fns = _parse_exported_resource_fns(resources_text)
     client_by_key: dict[tuple[str, str], str] = {}
     for fn_name, method, norm_path in client_calls:
         openapi_norm_path = "/api" + norm_path
@@ -563,12 +573,12 @@ def validate_frontend_contract_drift(
         )
         if not matching_openapi:
             errors.append(
-                f"resources.ts {fn_name} calls {method} {norm_path}, missing from openapi.yaml"
+                f"http.ts {fn_name} calls {method} {norm_path}, missing from openapi.yaml"
             )
             continue
         if method.lower() not in spec["paths"][matching_openapi]:
             errors.append(
-                f"resources.ts {fn_name} uses method {method} on {matching_openapi}, "
+                f"http.ts {fn_name} uses method {method} on {matching_openapi}, "
                 "missing from openapi.yaml"
             )
             continue
@@ -581,8 +591,10 @@ def validate_frontend_contract_drift(
         actual_fn = client_by_key.get(key)
         if actual_fn != expected_fn:
             errors.append(
-                f"resources.ts drift for {key}: expected fn {expected_fn!r}, found {actual_fn!r}"
+                f"http.ts drift for {key}: expected fn {expected_fn!r}, found {actual_fn!r}"
             )
+        elif expected_fn and expected_fn not in exported_resource_fns:
+            errors.append(f"resources.ts missing exported facade fn {expected_fn!r} for {key}")
 
     return errors
 

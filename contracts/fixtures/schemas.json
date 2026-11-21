@@ -671,6 +671,304 @@
           "options": { "challenge": "abc", "rpId": "localhost" }
         }
       }
+    ],
+    "CashflowRadarInput": [
+      {
+        "name": "default_horizon_with_planned_event",
+        "data": {
+          "asOfDate": "2026-08-31",
+          "horizonDays": 90,
+          "lookbackDays": 90,
+          "scope": "all",
+          "minimumSafeBalanceCents": 100000,
+          "plannedEvents": [
+            {
+              "title": "年度车险",
+              "direction": "expense",
+              "amountCents": 350000,
+              "occursOn": "2026-09-15"
+            }
+          ]
+        }
+      }
+    ],
+    "CashflowRadarOut": [
+      {
+        "name": "three_scenario_radar",
+        "data": {
+          "asOfDate": "2026-08-31",
+          "horizonDays": 90,
+          "startingLiquidBalanceCents": 2500000,
+          "excludedForeignAccountIds": ["a-usd"],
+          "dailyDiscretionaryExpenseCents": 12000,
+          "recurringCandidates": [
+            {
+              "payee": "物业费",
+              "direction": "expense",
+              "cadence": "monthly",
+              "typicalAmountCents": 32000,
+              "nextExpectedDate": "2026-09-10",
+              "confidence": "0.90",
+              "evidenceTransactionIds": ["t-001", "t-002"]
+            }
+          ],
+          "scenarios": [
+            {
+              "scenario": "baseline",
+              "endingBalanceCents": 2100000,
+              "lowestBalanceCents": 2050000,
+              "tightestWeekStart": "2026-09-14",
+              "breachesSafeBalance": false,
+              "weeklyBuckets": [
+                {
+                  "weekIndex": 1,
+                  "startsOn": "2026-09-01",
+                  "endsOn": "2026-09-07",
+                  "inflowCents": 0,
+                  "outflowCents": 84000,
+                  "netCents": -84000,
+                  "closingBalanceCents": 2416000
+                }
+              ]
+            }
+          ],
+          "riskAlerts": [],
+          "assumptions": ["仅纳入人民币流动资产账户"]
+        }
+      }
+    ],
+    "CashflowScenarioOut": [
+      {
+        "name": "baseline_scenario",
+        "data": {
+          "scenario": "baseline",
+          "endingBalanceCents": 2100000,
+          "lowestBalanceCents": 2050000,
+          "tightestWeekStart": "2026-09-14",
+          "breachesSafeBalance": false,
+          "weeklyBuckets": [
+            {
+              "weekIndex": 1,
+              "startsOn": "2026-09-01",
+              "endsOn": "2026-09-07",
+              "inflowCents": 0,
+              "outflowCents": 84000,
+              "netCents": -84000,
+              "closingBalanceCents": 2416000
+            }
+          ]
+        }
+      }
+    ],
+    "CashflowWeekBucketOut": [
+      {
+        "name": "week_one_bucket",
+        "data": {
+          "weekIndex": 1,
+          "startsOn": "2026-09-01",
+          "endsOn": "2026-09-07",
+          "inflowCents": 0,
+          "outflowCents": 84000,
+          "netCents": -84000,
+          "closingBalanceCents": 2416000
+        }
+      }
+    ],
+    "CfoAskInput": [
+      {
+        "name": "monthly_spending_question",
+        "data": {
+          "question": "这个月为什么花多了？",
+          "asOfDate": "2026-08-31",
+          "accountId": null,
+          "scope": "all",
+          "largeExpenseThresholdCents": 50000
+        }
+      }
+    ],
+    "CfoAskOut": [
+      {
+        "name": "evidence_backed_answer",
+        "data": {
+          "question": "这个月为什么花多了？",
+          "intent": "spending_change",
+          "provider": "local-deterministic",
+          "answer": "2026年8月净支出 ¥326.40。",
+          "assumptions": ["全部数据来自当前成员可见账户的已入账交易"],
+          "resolvedQuery": {
+            "startsOn": "2026-08-01",
+            "endsOn": "2026-08-31",
+            "comparisonStartsOn": "2026-07-01",
+            "comparisonEndsOn": "2026-07-31",
+            "scope": "all",
+            "accountIds": ["a-cmb"],
+            "categoryIds": ["c-grocery"],
+            "keyword": null
+          },
+          "metrics": {
+            "grossExpenseCents": 32640,
+            "linkedRefundCents": 0,
+            "netExpenseCents": 32640,
+            "splitReimbursedCents": 0,
+            "ownBurdenCents": 32640,
+            "incomeCents": 0,
+            "netCashflowCents": -32640,
+            "expenseCount": 1,
+            "averageExpenseCents": 32640,
+            "previousNetExpenseCents": 20000,
+            "netExpenseDeltaCents": 12640,
+            "previousExpenseCount": 1,
+            "previousAverageExpenseCents": 20000,
+            "primaryGrowthDriver": "ticket_size"
+          },
+          "topChanges": [
+            {
+              "label": "生鲜商超",
+              "kind": "category",
+              "currentCents": 32640,
+              "previousCents": 20000,
+              "deltaCents": 12640,
+              "transactionCount": 1,
+              "transactionIds": ["t-002"]
+            }
+          ],
+          "citations": [
+            {
+              "transactionId": "t-002",
+              "date": "2026-08-29T12:05:00+08:00",
+              "type": "expense",
+              "payee": "盒马鲜生",
+              "categoryId": "c-grocery",
+              "categoryName": "生鲜商超",
+              "currency": "CNY",
+              "amountCents": 32640,
+              "baseAmountCents": 32640,
+              "linkedRefundCents": 0,
+              "ownBurdenCents": 32640,
+              "splitStatus": "none",
+              "source": "manual",
+              "sourceFilename": null,
+              "sourceRef": null
+            }
+          ]
+        }
+      }
+    ],
+    "CfoCapabilitiesOut": [
+      {
+        "name": "local_deterministic_capabilities",
+        "data": {
+          "ocrEnabled": false,
+          "ocrProvider": "disabled",
+          "cfoProvider": "local-deterministic",
+          "externalLlmEnabled": false,
+          "supportedIntents": [
+            "overview",
+            "spending_change",
+            "frequency_vs_ticket",
+            "financial_memory",
+            "large_expenses"
+          ],
+          "privacyBoundary": "纯本地确定性模式：零外部 AI 调用"
+        }
+      }
+    ],
+    "CfoCitationOut": [
+      {
+        "name": "manual_expense_citation",
+        "data": {
+          "transactionId": "t-002",
+          "date": "2026-08-29T12:05:00+08:00",
+          "type": "expense",
+          "payee": "盒马鲜生",
+          "categoryId": "c-grocery",
+          "categoryName": "生鲜商超",
+          "currency": "CNY",
+          "amountCents": 32640,
+          "baseAmountCents": 32640,
+          "linkedRefundCents": 0,
+          "ownBurdenCents": 32640,
+          "splitStatus": "none",
+          "source": "manual",
+          "sourceFilename": null,
+          "sourceRef": null
+        }
+      }
+    ],
+    "CfoDriverOut": [
+      {
+        "name": "category_driver",
+        "data": {
+          "label": "生鲜商超",
+          "kind": "category",
+          "currentCents": 32640,
+          "previousCents": 20000,
+          "deltaCents": 12640,
+          "transactionCount": 1,
+          "transactionIds": ["t-002"]
+        }
+      }
+    ],
+    "CfoMetricsOut": [
+      {
+        "name": "monthly_metrics",
+        "data": {
+          "grossExpenseCents": 32640,
+          "linkedRefundCents": 0,
+          "netExpenseCents": 32640,
+          "splitReimbursedCents": 0,
+          "ownBurdenCents": 32640,
+          "incomeCents": 0,
+          "netCashflowCents": -32640,
+          "expenseCount": 1,
+          "averageExpenseCents": 32640,
+          "previousNetExpenseCents": 20000,
+          "netExpenseDeltaCents": 12640,
+          "previousExpenseCount": 1,
+          "previousAverageExpenseCents": 20000,
+          "primaryGrowthDriver": "ticket_size"
+        }
+      }
+    ],
+    "CfoResolvedQueryOut": [
+      {
+        "name": "resolved_month_window",
+        "data": {
+          "startsOn": "2026-08-01",
+          "endsOn": "2026-08-31",
+          "comparisonStartsOn": "2026-07-01",
+          "comparisonEndsOn": "2026-07-31",
+          "scope": "all",
+          "accountIds": ["a-cmb"],
+          "categoryIds": ["c-grocery"],
+          "keyword": null
+        }
+      }
+    ],
+    "PlannedCashflowEventInput": [
+      {
+        "name": "planned_insurance_expense",
+        "data": {
+          "title": "年度车险",
+          "direction": "expense",
+          "amountCents": 350000,
+          "occursOn": "2026-09-15"
+        }
+      }
+    ],
+    "RecurringCandidateOut": [
+      {
+        "name": "monthly_hoa_fee",
+        "data": {
+          "payee": "物业费",
+          "direction": "expense",
+          "cadence": "monthly",
+          "typicalAmountCents": 32000,
+          "nextExpectedDate": "2026-09-10",
+          "confidence": "0.90",
+          "evidenceTransactionIds": ["t-001", "t-002"]
+        }
+      }
     ]
   },
   "invalid": {
@@ -880,6 +1178,33 @@
           "source": "manual",
           "createdBy": "m-dad",
           "version": 1
+        }
+      }
+    ],
+    "CfoAskInput": [
+      {
+        "name": "empty_question",
+        "data": { "question": "" }
+      },
+      {
+        "name": "threshold_overflow",
+        "data": { "question": "大额支出", "largeExpenseThresholdCents": 9007199254740992 }
+      }
+    ],
+    "CashflowRadarInput": [
+      {
+        "name": "horizon_below_minimum",
+        "data": { "horizonDays": 3 }
+      }
+    ],
+    "PlannedCashflowEventInput": [
+      {
+        "name": "zero_amount_event",
+        "data": {
+          "title": "无效事件",
+          "direction": "expense",
+          "amountCents": 0,
+          "occursOn": "2026-09-15"
         }
       }
     ]

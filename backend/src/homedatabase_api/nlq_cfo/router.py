@@ -6,6 +6,7 @@ from collections.abc import Callable
 from datetime import date
 
 from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, status
+from fastapi.routing import APIRoute
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
 
@@ -26,6 +27,7 @@ from .schemas import (
 )
 from .service import NLQCFOService
 
+DEFAULT_NLQ_ROUTER_PREFIX = "/nlq-cfo"
 _DEFAULT_ADAPTER = DeterministicOfflineCFOAdapter()
 
 
@@ -37,9 +39,10 @@ def get_cfo_adapter() -> CFOAdapter:
 def create_nlq_router(
     *,
     adapter_dependency: Callable[[], CFOAdapter] = get_cfo_adapter,
+    router_prefix: str = DEFAULT_NLQ_ROUTER_PREFIX,
 ) -> APIRouter:
     """Create a decoupled, read-only APIRouter mountable on HomeDatabase FastAPI apps."""
-    api = APIRouter(prefix="/cfo", tags=["nlq-cfo"])
+    api = APIRouter(prefix=router_prefix, tags=["nlq-cfo"])
 
     @api.get("/capabilities", response_model=CfoCapabilitiesResponse)
     def cfo_capabilities(
@@ -97,14 +100,45 @@ def create_nlq_router(
 router = create_nlq_router()
 
 
+def collect_app_route_keys(app: FastAPI) -> list[tuple[str, str]]:
+    """Collect all (HTTP_METHOD, path) route keys across direct and included FastAPI routers."""
+    keys: list[tuple[str, str]] = []
+
+    def _walk(routes: list[object], prefix: str) -> None:
+        for route in routes:
+            if isinstance(route, APIRoute):
+                for method in sorted(route.methods or ()):
+                    keys.append((method.upper(), f"{prefix}{route.path}"))
+            elif hasattr(route, "original_router") and hasattr(route, "include_context"):
+                nested_prefix = f"{prefix}{route.include_context.prefix}"
+                _walk(list(route.original_router.routes), nested_prefix)
+
+    _walk(list(app.routes), "")
+    return keys
+
+
 def mount_nlq_cfo(
     app: FastAPI,
     *,
     prefix: str | None = None,
+    router_prefix: str = DEFAULT_NLQ_ROUTER_PREFIX,
     adapter_dependency: Callable[[], CFOAdapter] = get_cfo_adapter,
 ) -> APIRouter:
     """Mount the standalone read-only NLQ CFO router onto an existing FastAPI application."""
     api_prefix = get_settings().api_prefix if prefix is None else prefix
-    nlq_router = create_nlq_router(adapter_dependency=adapter_dependency)
+    nlq_router = create_nlq_router(
+        adapter_dependency=adapter_dependency,
+        router_prefix=router_prefix,
+    )
+    existing = set(collect_app_route_keys(app))
+    incoming = {
+        (method.upper(), f"{api_prefix}{route.path}")
+        for route in nlq_router.routes
+        if isinstance(route, APIRoute)
+        for method in (route.methods or ())
+    }
+    collisions = sorted(existing & incoming)
+    if collisions:
+        raise ValueError(f"Duplicate FastAPI route(s) detected when mounting nlq_cfo: {collisions}")
     app.include_router(nlq_router, prefix=api_prefix)
     return nlq_router

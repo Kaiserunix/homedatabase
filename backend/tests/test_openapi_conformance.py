@@ -172,7 +172,11 @@ def test_drift_validator_catches_injected_schema_and_fixture_drift(tmp_path):
         schema_gen.replace("            isAdmin: boolean;", "            isAdminChanged: boolean;"),
         encoding="utf-8",
     )
-    for rel in ("frontend/src/data/types.ts", "frontend/src/api/resources.ts"):
+    for rel in (
+        "frontend/src/data/types.ts",
+        "frontend/src/api/resources.ts",
+        "frontend/src/api/http.ts",
+    ):
         (tmp_path / rel).write_text((REPO_ROOT / rel).read_text(encoding="utf-8"), encoding="utf-8")
     drift_errors = DRIFT.validate_frontend_contract_drift(
         tmp_path, spec, _load_endpoints_manifest()
@@ -909,7 +913,39 @@ def test_all_48_live_endpoints_conform_to_openapi_responses(client, monkeypatch)
     )
     assert isinstance(xlsx_bytes, bytes) and xlsx_bytes.startswith(b"PK")
 
-    # 12. Logout
+    # 12. AI CFO endpoints (capabilities, ask, cashflow-radar)
+    _assert_response_conforms(
+        spec,
+        client.get("/api/cfo/capabilities"),
+        method="GET",
+        openapi_path="/api/cfo/capabilities",
+        expected_status=200,
+        exercised=exercised,
+    )
+    _assert_response_conforms(
+        spec,
+        client.post(
+            "/api/cfo/ask",
+            json={"question": "2026年8月花了多少", "asOfDate": "2026-08-31"},
+        ),
+        method="POST",
+        openapi_path="/api/cfo/ask",
+        expected_status=200,
+        exercised=exercised,
+    )
+    _assert_response_conforms(
+        spec,
+        client.post(
+            "/api/cfo/cashflow-radar",
+            json={"asOfDate": "2026-08-31", "horizonDays": 90},
+        ),
+        method="POST",
+        openapi_path="/api/cfo/cashflow-radar",
+        expected_status=200,
+        exercised=exercised,
+    )
+
+    # 13. Logout
     _assert_response_conforms(
         spec,
         client.post("/api/auth/logout"),

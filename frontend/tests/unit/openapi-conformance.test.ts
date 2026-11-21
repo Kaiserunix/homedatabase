@@ -79,6 +79,7 @@ describe("OpenAPI schema conformance & cross-stack drift validator", () => {
         schemaGenTsText: readUtf8("frontend/src/api/schema.gen.ts"),
         typesTsText: readUtf8("frontend/src/data/types.ts"),
         resourcesTsText: readUtf8("frontend/src/api/resources.ts"),
+        httpTsText: readUtf8("frontend/src/api/http.ts"),
         generatedSchemaTsText,
       }),
       ...validateFixtureCorpus(spec, schemaFixtures),
@@ -97,6 +98,7 @@ describe("OpenAPI schema conformance & cross-stack drift validator", () => {
       schemaGenTsText: mutatedSchemaGen,
       typesTsText: readUtf8("frontend/src/data/types.ts"),
       resourcesTsText: readUtf8("frontend/src/api/resources.ts"),
+      httpTsText: readUtf8("frontend/src/api/http.ts"),
     });
     expect(driftErrors.some((e) => e.includes("MemberOut"))).toBe(true);
 
@@ -378,6 +380,21 @@ describe("Mock mode (VITE_USE_MOCKS=true) responses conform to OpenAPI schemas",
       { type: "array", items: { $ref: "#/components/schemas/ReportTierOut" } },
       "mock:listReportTiers",
     );
+    assertValidSchema(
+      await resources.getCfoCapabilities(),
+      { $ref: "#/components/schemas/CfoCapabilitiesOut" },
+      "mock:getCfoCapabilities",
+    );
+    assertValidSchema(
+      await resources.askCfo({ question: "这个月花了多少", asOfDate: "2026-08-31" }),
+      { $ref: "#/components/schemas/CfoAskOut" },
+      "mock:askCfo",
+    );
+    assertValidSchema(
+      await resources.getCashflowRadar({ asOfDate: "2026-08-31", horizonDays: 90 }),
+      { $ref: "#/components/schemas/CashflowRadarOut" },
+      "mock:getCashflowRadar",
+    );
     expect(
       Object.prototype.toString.call(
         await resources.exportReport(5, { from: "2026-08-01", to: "2026-08-31" }),
@@ -553,6 +570,9 @@ describe("HTTP client request payloads & endpoints conform 100% to OpenAPI", () 
     await resources.deletePeriodLock("pl-1", "取消锁定");
     await resources.listReportTiers();
     await resources.exportReport(5, { from: "2026-08-01", to: "2026-08-31" });
+    await resources.getCfoCapabilities();
+    await resources.askCfo({ question: "这个月花了多少", asOfDate: "2026-08-31" });
+    await resources.getCashflowRadar({ asOfDate: "2026-08-31", horizonDays: 90 });
 
     const expectedClientOps = endpointsManifest.endpoints
       .filter((ep) => !ep.opsOnly)
