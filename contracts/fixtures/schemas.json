@@ -1,0 +1,887 @@
+{
+  "$comment": "Canonical OpenAPI 3.1 contract fixtures shared by backend pytest and frontend vitest drift validators.",
+  "valid": {
+    "AccountCreateInput": [
+      {
+        "name": "personal_cny_with_opening_balance",
+        "data": {
+          "name": "招商银行储蓄卡",
+          "kind": "asset",
+          "scope": "personal",
+          "currency": "CNY",
+          "openingBalanceCents": 125000,
+          "icon": "landmark"
+        }
+      },
+      {
+        "name": "family_liability_negative_max_safe",
+        "data": {
+          "name": "家庭房贷",
+          "kind": "liability",
+          "scope": "family",
+          "currency": "CNY",
+          "openingBalanceCents": -9007199254740991,
+          "icon": "home"
+        }
+      }
+    ],
+    "AccountGrantInput": [
+      {
+        "name": "manage_permission",
+        "data": { "permission": "manage" }
+      },
+      {
+        "name": "view_permission",
+        "data": { "permission": "view" }
+      }
+    ],
+    "AccountGrantOut": [
+      {
+        "name": "member_view_grant",
+        "data": { "memberId": "m-mom", "permission": "view" }
+      }
+    ],
+    "AccountOut": [
+      {
+        "name": "personal_usd_account",
+        "data": {
+          "id": "a-usd",
+          "name": "美元账户",
+          "kind": "asset",
+          "scope": "personal",
+          "ownerId": "m-dad",
+          "currency": "USD",
+          "balanceCents": 210000,
+          "icon": "dollar-sign",
+          "permission": "manage",
+          "version": 1
+        }
+      },
+      {
+        "name": "family_liability_account",
+        "data": {
+          "id": "a-mortgage",
+          "name": "家庭房贷",
+          "kind": "liability",
+          "scope": "family",
+          "ownerId": null,
+          "currency": "CNY",
+          "balanceCents": 86000000,
+          "icon": "home",
+          "permission": "view",
+          "version": 2
+        }
+      }
+    ],
+    "AccountUpdateInput": [
+      {
+        "name": "rename_account",
+        "data": { "expectedVersion": 1, "name": "招商银行工资卡", "icon": "landmark" }
+      },
+      {
+        "name": "minimal_expected_version_only",
+        "data": { "expectedVersion": 3 }
+      }
+    ],
+    "AuthOut": [
+      {
+        "name": "active_session",
+        "data": {
+          "member": {
+            "id": "m-son",
+            "identity": "son",
+            "name": "儿子",
+            "username": "son",
+            "isAdmin": true,
+            "color": "bg-teal-600"
+          },
+          "expiresAt": "2026-08-12T00:00:00Z"
+        }
+      }
+    ],
+    "BackupLocationOut": [
+      {
+        "name": "local_ok",
+        "data": { "kind": "local", "status": "ok" }
+      },
+      {
+        "name": "overseas_syncing",
+        "data": { "kind": "overseas", "status": "syncing" }
+      }
+    ],
+    "BackupRecordOut": [
+      {
+        "name": "ready_encrypted_backup",
+        "data": {
+          "id": "bk-001",
+          "createdAt": "2026-08-05T12:00:00Z",
+          "sizeMb": 42.6,
+          "encrypted": true,
+          "status": "ready",
+          "sha256": "9f2c4a71e0b3d5f688a1c2e4b7d9f0134567890abcdef0123456789abcdef01",
+          "locations": [
+            { "kind": "local", "status": "ok" },
+            { "kind": "tencent", "status": "syncing" }
+          ],
+          "lastVerifiedAt": "2026-08-05T12:05:00Z"
+        }
+      },
+      {
+        "name": "creating_backup_nullable_fields",
+        "data": {
+          "id": "bk-002",
+          "createdAt": "2026-08-06T00:00:00Z",
+          "sizeMb": 0,
+          "encrypted": true,
+          "status": "creating",
+          "sha256": null,
+          "locations": [{ "kind": "local", "status": "syncing" }],
+          "lastVerifiedAt": null
+        }
+      }
+    ],
+    "CandidateIdsInput": [
+      {
+        "name": "multiple_candidates",
+        "data": { "candidateIds": ["cd-1", "cd-2"] }
+      }
+    ],
+    "CategoryCreateInput": [
+      {
+        "name": "child_expense_category",
+        "data": {
+          "name": "外卖",
+          "kind": "expense",
+          "parentId": "c-food",
+          "icon": "bike"
+        }
+      }
+    ],
+    "CategoryOut": [
+      {
+        "name": "root_income_category",
+        "data": {
+          "id": "c-salary",
+          "name": "工资",
+          "kind": "income",
+          "parentId": null,
+          "icon": "briefcase",
+          "active": true,
+          "version": 1
+        }
+      }
+    ],
+    "CategoryUpdateInput": [
+      {
+        "name": "deactivate_category",
+        "data": { "expectedVersion": 2, "active": false }
+      }
+    ],
+    "DeleteInput": [
+      {
+        "name": "audit_reason",
+        "data": { "reason": "重复录入，作废清理" }
+      }
+    ],
+    "EntryLineOut": [
+      {
+        "name": "account_entry_line",
+        "data": {
+          "accountId": "a-usd",
+          "ledgerCode": null,
+          "debitCents": 0,
+          "creditCents": 20764,
+          "accountAmountCents": 2900,
+          "accountCurrency": "USD"
+        }
+      },
+      {
+        "name": "ledger_entry_line",
+        "data": {
+          "accountId": null,
+          "ledgerCode": "expense:c-other",
+          "debitCents": 20764,
+          "creditCents": 0,
+          "accountAmountCents": null,
+          "accountCurrency": null
+        }
+      }
+    ],
+    "HTTPValidationError": [
+      {
+        "name": "fastapi_422_detail",
+        "data": {
+          "detail": [
+            {
+              "loc": ["body", "amountCents"],
+              "msg": "Input should be greater than 0",
+              "type": "greater_than",
+              "input": 0
+            }
+          ]
+        }
+      }
+    ],
+    "HealthOut": [
+      {
+        "name": "healthy",
+        "data": { "status": "ok", "database": "ok", "version": "0.1.0" }
+      }
+    ],
+    "ImportBatchOut": [
+      {
+        "name": "reviewing_batch_with_fx_candidate",
+        "data": {
+          "id": "b-003",
+          "filename": "微信支付账单_2026-07.csv",
+          "source": "微信支付",
+          "importedAt": "2026-08-02T13:14:00Z",
+          "status": "reviewing",
+          "ownerId": "m-dad",
+          "targetAccountId": "a-alipay",
+          "jobId": "job-b-003",
+          "progress": 100,
+          "message": "解析完成，待确认 1 条候选",
+          "fileCount": 1,
+          "filesProcessed": 1,
+          "candidateCount": 1,
+          "needsOcrCount": 0,
+          "failedFileCount": 0,
+          "version": 1,
+          "files": [
+            {
+              "id": "f-1",
+              "filename": "微信支付账单_2026-07.csv",
+              "mimeType": "text/csv",
+              "sizeBytes": 1024,
+              "sha256": "abc123",
+              "encrypted": true,
+              "expiresAt": "2026-11-02T13:14:00Z",
+              "duplicateOfFileId": null,
+              "parseStatus": "parsed",
+              "parseMessage": "",
+              "recordCount": 1,
+              "candidateCount": 1,
+              "rejectedCount": 0
+            }
+          ],
+          "candidates": [
+            {
+              "id": "cd-7",
+              "date": "2026-08-01T21:40:00Z",
+              "payee": "Amazon US",
+              "direction": "expense",
+              "amountCents": 1599,
+              "currency": "USD",
+              "fxRate": null,
+              "baseAmountCents": null,
+              "suggestedCategoryId": "c-other",
+              "originalCategory": "Shopping",
+              "targetAccountId": "a-usd",
+              "duplicateOfTxnId": null,
+              "status": "pending",
+              "validationStatus": "needs_fx_review",
+              "confidence": "0.88",
+              "version": 1
+            }
+          ]
+        }
+      }
+    ],
+    "ImportCandidateOut": [
+      {
+        "name": "valid_fx_patched_candidate",
+        "data": {
+          "id": "cd-7",
+          "date": "2026-08-01T21:40:00Z",
+          "payee": "Amazon US",
+          "direction": "expense",
+          "amountCents": 1599,
+          "currency": "USD",
+          "fxRate": "7.20",
+          "baseAmountCents": 11513,
+          "suggestedCategoryId": "c-other",
+          "originalCategory": "Shopping",
+          "targetAccountId": "a-usd",
+          "duplicateOfTxnId": null,
+          "status": "pending",
+          "validationStatus": "valid",
+          "confidence": "0.95",
+          "version": 2
+        }
+      },
+      {
+        "name": "null_confidence_candidate",
+        "data": {
+          "id": "cd-8",
+          "date": "2026-08-01T21:40:00Z",
+          "payee": "盒马鲜生",
+          "direction": "expense",
+          "amountCents": 32640,
+          "currency": "CNY",
+          "suggestedCategoryId": "c-grocery",
+          "originalCategory": null,
+          "targetAccountId": "a-alipay",
+          "duplicateOfTxnId": "t-002",
+          "status": "pending",
+          "validationStatus": "exact_duplicate",
+          "confidence": null,
+          "version": 1
+        }
+      }
+    ],
+    "ImportCandidatePatch": [
+      {
+        "name": "patch_fx_string",
+        "data": {
+          "expectedVersion": 1,
+          "fxRate": "7.20",
+          "baseAmountCents": 11513
+        }
+      },
+      {
+        "name": "patch_fx_numeric",
+        "data": {
+          "expectedVersion": 1,
+          "fxRate": 7.2,
+          "payee": "Amazon US (Verified)"
+        }
+      }
+    ],
+    "ImportJobOut": [
+      {
+        "name": "completed_job",
+        "data": {
+          "id": "job-1",
+          "batchId": "b-003",
+          "status": "reviewing",
+          "progress": 100,
+          "message": "解析完成",
+          "fileCount": 1,
+          "filesProcessed": 1,
+          "candidateCount": 1,
+          "needsOcrCount": 0,
+          "failedFileCount": 0
+        }
+      }
+    ],
+    "LoginInput": [
+      {
+        "name": "password_login",
+        "data": { "username": "son", "password": "correct-horse-battery-staple" }
+      }
+    ],
+    "MemberOut": [
+      {
+        "name": "son_admin",
+        "data": {
+          "id": "m-son",
+          "identity": "son",
+          "name": "儿子",
+          "username": "son",
+          "isAdmin": true,
+          "color": "bg-teal-600"
+        }
+      }
+    ],
+    "NewSplitInput": [
+      {
+        "name": "two_member_split",
+        "data": {
+          "txnId": "t-003",
+          "totalCents": 46800,
+          "shares": [
+            { "memberId": "m-dad", "shareCents": 23400 },
+            { "memberId": "m-mom", "shareCents": 23400 }
+          ]
+        }
+      }
+    ],
+    "NewSplitShare": [
+      {
+        "name": "member_share",
+        "data": { "memberId": "m-mom", "shareCents": 23400 }
+      }
+    ],
+    "NewTransactionInput": [
+      {
+        "name": "cny_expense",
+        "data": {
+          "type": "expense",
+          "payee": "盒马鲜生",
+          "note": "周末采购",
+          "categoryId": "c-grocery",
+          "accountId": "a-alipay",
+          "amountCents": 32640,
+          "currency": "CNY",
+          "date": "2026-08-05T12:30:00+08:00"
+        }
+      },
+      {
+        "name": "usd_expense_with_fx_and_max_safe",
+        "data": {
+          "type": "expense",
+          "payee": "Apple Store",
+          "note": "",
+          "categoryId": "c-other",
+          "accountId": "a-usd",
+          "amountCents": 2900,
+          "currency": "USD",
+          "date": "2026-08-03T03:20:00Z",
+          "fxRate": "7.16",
+          "baseAmountCents": 20764
+        }
+      },
+      {
+        "name": "transfer_same_currency",
+        "data": {
+          "type": "transfer",
+          "payee": "转入家庭账户",
+          "accountId": "a-cmb",
+          "toAccountId": "a-family",
+          "categoryId": null,
+          "amountCents": 300000,
+          "currency": "CNY",
+          "date": "2026-08-05T08:00:00+08:00"
+        }
+      },
+      {
+        "name": "refund_linked_to_expense",
+        "data": {
+          "type": "refund",
+          "payee": "京东退款",
+          "accountId": "a-cc",
+          "refundOf": "t-006",
+          "amountCents": 25900,
+          "currency": "CNY",
+          "date": "2026-08-05T16:00:00+08:00"
+        }
+      }
+    ],
+    "PasskeyAuthenticationBeginInput": [
+      {
+        "name": "begin_auth",
+        "data": { "username": "son" }
+      }
+    ],
+    "PasskeyAuthenticationFinishInput": [
+      {
+        "name": "finish_auth",
+        "data": {
+          "ceremonyId": "cer-1",
+          "credential": { "id": "cred-1", "type": "public-key", "response": {} }
+        }
+      }
+    ],
+    "PasskeyOut": [
+      {
+        "name": "registered_passkey",
+        "data": {
+          "id": "pk-1",
+          "name": "iPhone 面容 ID",
+          "createdAt": "2026-08-01T10:00:00Z",
+          "lastUsedAt": "2026-08-05T10:00:00Z"
+        }
+      }
+    ],
+    "PasskeyRegistrationFinishInput": [
+      {
+        "name": "finish_reg",
+        "data": {
+          "ceremonyId": "cer-2",
+          "name": "MacBook Touch ID",
+          "credential": { "id": "cred-2", "type": "public-key", "response": {} }
+        }
+      }
+    ],
+    "PeriodLockInput": [
+      {
+        "name": "july_lock",
+        "data": {
+          "startsOn": "2026-07-01",
+          "endsOn": "2026-07-31",
+          "reason": "月度核对完成"
+        }
+      }
+    ],
+    "PeriodLockOut": [
+      {
+        "name": "july_lock_out",
+        "data": {
+          "id": "pl-1",
+          "startsOn": "2026-07-01",
+          "endsOn": "2026-07-31",
+          "lockedBy": "m-son",
+          "reason": "月度核对完成",
+          "createdAt": "2026-08-01T00:00:00Z"
+        }
+      }
+    ],
+    "ReportTierOut": [
+      {
+        "name": "tier_5",
+        "data": {
+          "tier": 5,
+          "name": "统计分析",
+          "audience": "分析",
+          "description": "分类结构和月度收支趋势"
+        }
+      }
+    ],
+    "SourceFileOut": [
+      {
+        "name": "parsed_csv",
+        "data": {
+          "id": "file-1",
+          "filename": "bill.csv",
+          "mimeType": "text/csv",
+          "sizeBytes": 512,
+          "sha256": "deadbeef",
+          "encrypted": true,
+          "expiresAt": null,
+          "duplicateOfFileId": null,
+          "parseStatus": "parsed",
+          "parseMessage": "解析成功",
+          "recordCount": 3,
+          "candidateCount": 3,
+          "rejectedCount": 0
+        }
+      }
+    ],
+    "SplitOut": [
+      {
+        "name": "open_usd_split",
+        "data": {
+          "id": "s-003",
+          "txnId": "t-008",
+          "title": "Apple Store",
+          "transactionDate": "2026-08-03T03:20:00Z",
+          "categoryId": "c-other",
+          "currency": "USD",
+          "totalCents": 2900,
+          "createdBy": "m-dad",
+          "createdAt": "2026-08-03T04:00:00Z",
+          "status": "open",
+          "shares": [
+            { "memberId": "m-dad", "shareCents": 1450, "status": "accepted" },
+            { "memberId": "m-mom", "shareCents": 1450, "status": "pending", "note": null }
+          ],
+          "version": 1
+        }
+      }
+    ],
+    "SplitResponseInput": [
+      {
+        "name": "accept_split",
+        "data": { "expectedVersion": 1, "accept": true }
+      },
+      {
+        "name": "return_split_with_note",
+        "data": { "expectedVersion": 1, "accept": false, "note": "金额需重新确认" }
+      }
+    ],
+    "SplitShareOut": [
+      {
+        "name": "returned_share",
+        "data": {
+          "memberId": "m-son",
+          "shareCents": 15600,
+          "status": "returned",
+          "note": "我不吃火锅"
+        }
+      }
+    ],
+    "SplitShareUpdateInput": [
+      {
+        "name": "update_share",
+        "data": { "expectedVersion": 1, "shareCents": 12000 }
+      }
+    ],
+    "TransactionOut": [
+      {
+        "name": "max_safe_cny_expense",
+        "data": {
+          "id": "t-max",
+          "date": "2026-08-05T12:30:00Z",
+          "type": "expense",
+          "payee": "边界校验",
+          "note": "",
+          "categoryId": null,
+          "currency": "CNY",
+          "baseCurrency": "CNY",
+          "fxRate": null,
+          "amountCents": 9007199254740991,
+          "baseAmountCents": 9007199254740991,
+          "lines": [
+            {
+              "accountId": null,
+              "ledgerCode": "expense:uncategorized",
+              "debitCents": 9007199254740991,
+              "creditCents": 0,
+              "accountAmountCents": null,
+              "accountCurrency": null
+            },
+            {
+              "accountId": "a-son-wallet",
+              "ledgerCode": null,
+              "debitCents": 0,
+              "creditCents": 9007199254740991,
+              "accountAmountCents": 9007199254740991,
+              "accountCurrency": "CNY"
+            }
+          ],
+          "source": "manual",
+          "batchId": null,
+          "refundOf": null,
+          "splitId": null,
+          "createdBy": "m-son",
+          "version": 1,
+          "deletedAt": null,
+          "deletedBy": null
+        }
+      }
+    ],
+    "TransactionRestoreInput": [
+      {
+        "name": "restore_v2",
+        "data": { "expectedVersion": 2 }
+      }
+    ],
+    "TransactionUpdateInput": [
+      {
+        "name": "patch_payee_and_category",
+        "data": { "expectedVersion": 1, "payee": "修正商户", "categoryId": "c-food" }
+      }
+    ],
+    "ValidationError": [
+      {
+        "name": "pydantic_field_error",
+        "data": {
+          "loc": ["body", "payee"],
+          "msg": "String should have at least 1 character",
+          "type": "string_too_short"
+        }
+      }
+    ],
+    "WebAuthnCeremonyOut": [
+      {
+        "name": "auth_options",
+        "data": {
+          "ceremonyId": "cer-1",
+          "options": { "challenge": "abc", "rpId": "localhost" }
+        }
+      }
+    ]
+  },
+  "invalid": {
+    "AccountCreateInput": [
+      {
+        "name": "opening_balance_exceeds_js_max_safe",
+        "data": {
+          "name": "溢出测试",
+          "kind": "asset",
+          "scope": "personal",
+          "currency": "CNY",
+          "openingBalanceCents": 9007199254740992
+        }
+      },
+      {
+        "name": "lowercase_currency",
+        "data": {
+          "name": "币种错误",
+          "kind": "asset",
+          "scope": "personal",
+          "currency": "cny"
+        }
+      },
+      {
+        "name": "invalid_kind_enum",
+        "data": {
+          "name": "非法类型",
+          "kind": "checking",
+          "scope": "personal"
+        }
+      }
+    ],
+    "AccountUpdateInput": [
+      {
+        "name": "zero_expected_version",
+        "data": { "expectedVersion": 0, "name": "test" }
+      }
+    ],
+    "BackupRecordOut": [
+      {
+        "name": "unencrypted_backup_forbidden",
+        "data": {
+          "id": "bk-bad",
+          "createdAt": "2026-08-05T12:00:00Z",
+          "sizeMb": 1.0,
+          "encrypted": false,
+          "status": "ready",
+          "sha256": null,
+          "locations": [],
+          "lastVerifiedAt": null
+        }
+      }
+    ],
+    "CandidateIdsInput": [
+      {
+        "name": "empty_candidate_ids",
+        "data": { "candidateIds": [] }
+      }
+    ],
+    "DeleteInput": [
+      {
+        "name": "empty_reason",
+        "data": { "reason": "" }
+      }
+    ],
+    "HealthOut": [
+      {
+        "name": "non_ok_const",
+        "data": { "status": "degraded", "database": "ok", "version": "0.1.0" }
+      }
+    ],
+    "ImportCandidateOut": [
+      {
+        "name": "legacy_string_confidence_drift",
+        "data": {
+          "id": "cd-drift",
+          "date": "2026-08-01T21:40:00Z",
+          "payee": "Amazon US",
+          "direction": "expense",
+          "amountCents": 1599,
+          "currency": "USD",
+          "suggestedCategoryId": null,
+          "originalCategory": null,
+          "targetAccountId": "a-usd",
+          "duplicateOfTxnId": null,
+          "status": "pending",
+          "validationStatus": "needs_fx_review",
+          "confidence": "high",
+          "version": 1
+        }
+      },
+      {
+        "name": "missing_required_confidence",
+        "data": {
+          "id": "cd-missing",
+          "date": "2026-08-01T21:40:00Z",
+          "payee": "Amazon US",
+          "direction": "expense",
+          "amountCents": 1599,
+          "currency": "USD",
+          "suggestedCategoryId": null,
+          "originalCategory": null,
+          "targetAccountId": "a-usd",
+          "duplicateOfTxnId": null,
+          "status": "pending",
+          "validationStatus": "valid",
+          "version": 1
+        }
+      }
+    ],
+    "ImportCandidatePatch": [
+      {
+        "name": "zero_fx_rate_number",
+        "data": { "expectedVersion": 1, "fxRate": 0 }
+      },
+      {
+        "name": "non_numeric_punctuation_fx_rate",
+        "data": { "expectedVersion": 1, "fxRate": "-" }
+      },
+      {
+        "name": "zero_amount_cents",
+        "data": { "expectedVersion": 1, "amountCents": 0 }
+      }
+    ],
+    "MemberOut": [
+      {
+        "name": "invalid_identity_enum",
+        "data": {
+          "id": "m-guest",
+          "identity": "guest",
+          "name": "访客",
+          "username": "guest",
+          "isAdmin": false,
+          "color": "bg-slate-500"
+        }
+      }
+    ],
+    "NewSplitInput": [
+      {
+        "name": "empty_shares",
+        "data": { "txnId": "t-1", "totalCents": 100, "shares": [] }
+      }
+    ],
+    "NewTransactionInput": [
+      {
+        "name": "zero_amount_cents",
+        "data": {
+          "type": "expense",
+          "payee": "超市",
+          "accountId": "a-cmb",
+          "amountCents": 0,
+          "date": "2026-08-05T12:30:00Z"
+        }
+      },
+      {
+        "name": "amount_cents_unsafe_overflow",
+        "data": {
+          "type": "expense",
+          "payee": "超市",
+          "accountId": "a-cmb",
+          "amountCents": 9007199254740992,
+          "date": "2026-08-05T12:30:00Z"
+        }
+      },
+      {
+        "name": "invalid_datetime",
+        "data": {
+          "type": "expense",
+          "payee": "超市",
+          "accountId": "a-cmb",
+          "amountCents": 100,
+          "date": "not-a-timestamp"
+        }
+      }
+    ],
+    "PeriodLockInput": [
+      {
+        "name": "invalid_date_format",
+        "data": { "startsOn": "2026/07/01", "endsOn": "2026-07-31" }
+      }
+    ],
+    "ReportTierOut": [
+      {
+        "name": "tier_out_of_enum",
+        "data": {
+          "tier": 6,
+          "name": "越界",
+          "audience": "x",
+          "description": "y"
+        }
+      }
+    ],
+    "TransactionOut": [
+      {
+        "name": "missing_lines",
+        "data": {
+          "id": "t-bad",
+          "date": "2026-08-05T12:30:00Z",
+          "type": "expense",
+          "payee": "超市",
+          "note": "",
+          "categoryId": null,
+          "currency": "CNY",
+          "baseCurrency": "CNY",
+          "amountCents": 100,
+          "baseAmountCents": 100,
+          "source": "manual",
+          "createdBy": "m-dad",
+          "version": 1
+        }
+      }
+    ]
+  }
+}

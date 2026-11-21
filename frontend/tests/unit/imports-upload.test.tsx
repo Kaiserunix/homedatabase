@@ -93,7 +93,7 @@ describe("导入列表重复数（isDuplicate 口径，fetch 打桩）", () => {
     duplicateOfTxnId: null,
     status: "pending",
     validationStatus: "valid",
-    confidence: "high",
+    confidence: "0.95",
     version: 1,
     ...overrides,
   });
