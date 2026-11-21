@@ -1,8 +1,6 @@
 # HomeDatabase 产品体验审计与 vNext 交互设计规范 (UX Experience & Design Spec)
 
-> **适用仓库**：`Kaiserunix/homedatabase`  
-> **设计分支**：`swarm/ux-design-1`  
-> **联合出品**：`@design-copy-1`（产品体验设计师 & UX 文案主笔） × `@ux-sim-1`（三角色全链路模拟用户走查）  
+> **适用仓库**：`Kaiserunix/homedatabase`
 > **基准原则**：100% 锚定仓库真实源码（FastAPI + SQLAlchemy 后端、React 18 + Vite 手机 PWA 与桌面管理台、OpenAPI 契约与 Docker 部署配置），拒绝空中楼阁；所有缺陷定位精确到 `文件:行号`，所有 vNext 交互蓝图与文案改写均可直接对齐现有或演进中的 API 契约落地。
 
 ---
@@ -58,7 +56,7 @@
 
 ## 3. 三角色端到端真实走查与 10 大代码级摩擦点矩阵
 
-我们结合 `@ux-sim-1` 的三类核心家庭角色进行了端到端仿真走查：
+我们围绕三类核心家庭角色进行了端到端仿真走查：
 - **角色 A（Son · 26 岁自托管技术主理人）**：在家用 NAS / 单机 Docker 部署系统，初始化家庭账本，管理分类、期间锁定与加密备份。
 - **角色 B（Mom · 54 岁手机 PWA 日常记账人）**：在手机浏览器打开 PWA（`http://localhost:5200/`），登录账号，导入每月微信/支付宝 CSV 账单，补记昨天买菜支出、记录超市退货退款、发起家庭水电费分摊。
 - **角色 C（Dad · 56 岁家庭财务总览与 CFO 洞察关注者）**：关注每月家庭净支出变化、大额异动归因与资产负债全貌。
@@ -75,7 +73,7 @@
 | **F-06** | **P0** | **文档承诺“候选区可改日期/金额/方向”，与当前 UI 只读文本存在断层** | `README.md:138`<br>`docs/CONNECT_YOUR_DATA.md:38`<br>`frontend/src/mobile/pages/Import.tsx:555-685`<br>`admin/pages/ImportDetail.tsx:438-575`<br>`services/imports.py:487-544` | 文档写明“在候选区修正日期、金额、方向、分类和外币折算”，但前端候选区目前仅允许修改 **「建议分类」**、**「上传时未指定的入账账户」**（若上传时选错了目标账户，`ImportDetail.tsx:460` 将其锁死为只读文本！）与 **「外币汇率/折算金额」**；日期、商户、金额、方向在 UI 上均为只读。 | **短期（文档与账户解锁）**：立即校准 README 与 `CONNECT_YOUR_DATA.md` 表述，并在 UI 上允许随时修改候选行的 `targetAccountId`（即使上传时指定了默认账户）；**中期（vNext 候选行内快修）**：在候选行增加 `[编辑]` 展开抽屉，支持修正商户名、日期、金额与收支方向（对接 `PATCH /api/import-batches/{id}/candidates/{cid}`）。 |
 | **F-07** | **P1** | **零自动分类别名与商户记忆（Payee Memory），200 条微信账单需手点 200 次下拉框** | `backend/src/homedatabase_api/services/imports.py:251-258, 341-348`<br>`frontend/src/admin/pages/ImportDetail.tsx:481-499` | `_category_lookup` 仅做 CSV `交易分类` 与系统 12 个分类名的精确字符串相等匹配。微信账单无对应分类名、支付宝分类名为 `餐饮美食` / `日用百货` / `交通出行`，导致导入后几乎 100% 为 `未分类`；且在候选区把某条 `美团` 改为 `餐饮` 后，不会自动同步同批次其余 `美团` 候选，也没有批量改分类工具栏。 | ① 内置微信/支付宝高频分类同义词映射表 + 历史已确认交易的 **`Payee -> Category` 记忆自动带出**；② 在前端候选区当用户修改某行的分类或账户时，若同批次存在同名商户（`c.payee` 相同且仍为 `未分类`），行内弹出轻量气泡：**「同批还有 N 条『美团』，是否一并设为『餐饮』？[一键同步]」**，并在底部操作栏增加 **「批量设为分类…」**。 |
 | **F-08** | **P1** | **手机流水页缺少关键词搜索与账户/分类筛选，未利用后端已有查询能力** | `frontend/src/mobile/pages/Txns.tsx:66-130`<br>`backend/src/homedatabase_api/routers/ledger.py:135-150` | 后端 `GET /api/transactions` 已经支持 `type`、`accountId`、`month`、`keyword` 参数，桌面端 `admin/pages/Txns.tsx:269-302` 也有账户下拉与 `搜商户 / 备注` 搜索框；但手机端 `mobile/pages/Txns.tsx` 只有类型 Tab 和月份下拉，妈妈想在手机上查“上个月山姆花了多少”只能肉眼翻列表。 | 在 `mobile/pages/Txns.tsx` 顶部筛选区增加折叠式/常驻 **`🔍 搜商户 / 备注`** 输入框及 **`全部账户 ▾` / `全部分类 ▾`** 胶囊筛选器，并显示当前筛选条件下的「筛选结果合计：支出 ¥X / 收入 ¥Y」。 |
-| **F-09** | **P1** | **首屏 `PARENTS_GUIDE.md` 404 死链 & V1 固定三成员 Schema (`dad`/`mom`/`son`) 角色困惑** | `README.md:27`<br>`backend/src/homedatabase_api/models.py:85`<br>`frontend/src/admin/pages/Members.tsx:41` | ① `README.md:27` 的 `[日常使用](docs/release/PARENTS_GUIDE.md)` 指向不存在的文件（404）；② 数据库 `ck_members_identity` 固定 `dad` / `mom` / `son` 且仅 `son` 为管理员，二人夫妻家庭或由妻子管账的家庭不知道该用哪个账号进管理台。 | ① 移除 404 死链，并提供本文档配套的 `docs/USER_JOURNEY_COPY.md`（含父母/家人手机端日常使用速查卡）；② 在初始化 CLI、`LoginPage.tsx` 与 `Members.tsx` 明确说明 **「V1 预置三角色家庭沙盒模板：`son` 为家庭管理员账号（可进 `/admin.html` 管理台），二人夫妻家庭建议主理人使用 `son`、伴侣使用 `mom` 或 `dad`」**；vNext 支持在管理台自定义成员显示昵称（如把 `son` 显示名改为 `老公（管理员）`）。 |
+| **F-09** | **P1** | **首屏 `PARENTS_GUIDE.md` 404 死链 & V1 固定三成员 Schema (`dad`/`mom`/`son`) 角色困惑** | `README.md:27`<br>`backend/src/homedatabase_api/models.py:85`<br>`frontend/src/admin/pages/Members.tsx:41` | ① `README.md:27` 的 [日常使用](release/PARENTS_GUIDE.md) 原先指向不存在的文件（404）；② 数据库 `ck_members_identity` 固定 `dad` / `mom` / `son` 且仅 `son` 为管理员，二人夫妻家庭或由妻子管账的家庭不知道该用哪个账号进管理台。 | ① 补齐 [release/PARENTS_GUIDE.md](release/PARENTS_GUIDE.md) 并配套 [USER_JOURNEY_COPY.md](USER_JOURNEY_COPY.md)（含父母/家人手机端日常使用速查卡）；② 在初始化 CLI、`LoginPage.tsx` 与 `Members.tsx` 明确说明 **「V1 预置三角色家庭沙盒模板：`son` 为家庭管理员账号（可进 `/admin.html` 管理台），二人夫妻家庭建议主理人使用 `son`、伴侣使用 `mom` 或 `dad`」**；vNext 支持在管理台自定义成员显示昵称（如把 `son` 显示名改为 `老公（管理员）`）。 |
 | **F-10** | **P1** | **部署文档直接抛出“国内 2GB + 海外 8GB + WireGuard + Codex 设备码”，劝退单机 NAS 玩家** | `infra/README.md:1-114`<br>`infra/compose.domestic.yml`<br>`infra/compose.overseas-worker.yml` | 95% 的自托管家庭用户只需要在家里一台群晖 NAS 或单台 2GB 云主机上跑起完整账本（PostgreSQL + API + Web PWA）。但 `infra/README.md` 开篇即要求双机 + WireGuard 隧道 `10.88.0.1` + 4 条手动生成密钥命令 + Linux Codex CLI 容器设备登录（且海外 `heavy` worker 实际仅运行 `deployment_health` 探针）。 | 在 `infra/README.md` 与 `docs/CONNECT_YOUR_DATA.md` 将部署路径明确拆分为 **「路径 A：单机 Homelab / NAS 极简部署（推荐，单台机器跑通完整账本 + 加密备份，无需海外机、无需 WireGuard）」** 与 **「路径 B：双机跨境沙箱 OCR 进阶拓扑」**，并提供一键 `.env` 密钥生成脚本。 |
 
 ---
@@ -129,7 +127,7 @@
 ### 蓝图 2：带账期切换器与确定性「本月 CFO 财务简报」的首页/仪表盘（`Home.tsx` & `Dashboard.tsx` & `Reports.tsx`）
 
 #### 设计目标
-解决 **F-02（Demo 模式非 2026-08/09 显示 `¥0.00`）**，并兑现 **Layer 3 AI CFO 的第一阶段确定性财务洞察（无需外部 LLM 即可零幻觉运行，也可对接 `@coder-carbon-2` 的 CFO 分析引擎）**。
+解决 **F-02（Demo 模式非 2026-08/09 显示 `¥0.00`）**，并兑现 **Layer 3 AI CFO 的第一阶段确定性财务洞察（无需外部 LLM 即可零幻觉运行，也可对接独立的确定性 CFO 分析引擎）**。
 
 #### 交互规则
 1. **月份切换胶囊（Month Switcher Pill）**：

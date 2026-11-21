@@ -23,9 +23,9 @@
 
 **公开脱敏版说明**：仓库内置的示例库从零生成，所有交易均为虚构，不包含真实流水、凭据、密钥或私人运行目录。
 
-- [产品策略与演进优先级（共识路线图）](docs/PRODUCT_STRATEGY.md)
-- [接入自己的数据：空库初始化、账单导入、API 与 PostgreSQL](docs/CONNECT_YOUR_DATA.md)
-- [示例数据库与 CSV 模板](examples/README.md) · [公开数据范围与脱敏说明](docs/PUBLIC_DATA.md) · [服务器部署](infra/README.md)
+- [产品策略与演进优先级（共识路线图）](docs/PRODUCT_STRATEGY.md) · [UX 体验规范](docs/UX_EXPERIENCE_AND_DESIGN_SPEC.md)
+- [接入自己的数据：空库初始化、账单导入、API 与 PostgreSQL](docs/CONNECT_YOUR_DATA.md) · [家人手机端日常使用速查](docs/release/PARENTS_GUIDE.md)
+- [全部文档索引](docs/INDEX.md) · [示例数据库与 CSV 模板](examples/README.md) · [公开数据范围与脱敏说明](docs/PUBLIC_DATA.md) · [服务器部署](infra/README.md)
 
 ---
 

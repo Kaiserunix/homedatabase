@@ -8,6 +8,9 @@
 | --- | --- | --- |
 | [CONNECT_YOUR_DATA.md](CONNECT_YOUR_DATA.md) | Active | 空库初始化、CSV/TSV/XLSX 导入边界、PostgreSQL 配置、API 接入与排错 |
 | [release/PARENTS_GUIDE.md](release/PARENTS_GUIDE.md) | Active | 家庭成员手机 PWA 首次登录、日常记账、分摊与账单导入速查 |
+| [PRODUCT_STRATEGY.md](PRODUCT_STRATEGY.md) | Active | 产品定位、用户痛点优先级与 Layer 1 → Layer 3 演进路线图 |
+| [UX_EXPERIENCE_AND_DESIGN_SPEC.md](UX_EXPERIENCE_AND_DESIGN_SPEC.md) | Reference | 代码核验的体验走查、10 大摩擦点矩阵、vNext 交互蓝图与微文案规范 |
+| [USER_JOURNEY_COPY.md](USER_JOURNEY_COPY.md) | Reference | 全链路首页与组件微文案、角色映射与父母/家人上手卡片 |
 | [AI_ROADMAP.md](AI_ROADMAP.md) | Reference | 已实现能力（含可选 Codex OCR）与未实现 AI 规划的清晰边界及数据流说明 |
 | [PUBLIC_DATA.md](PUBLIC_DATA.md) | Reference | 公开脱敏快照包含/排除范围与 `check_public_demo.py` 校验口径 |
 | [SUBMISSION.md](SUBMISSION.md) | Historical | 三分钟演示流程与仓库可验证测试基线参考 |

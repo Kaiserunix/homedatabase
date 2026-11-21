@@ -1,8 +1,6 @@
 # HomeDatabase 全链路用户旅程文案手册与父母家人使用指南 (User Journey Copy Deck & Family Guide)
 
-> **适用仓库**：`Kaiserunix/homedatabase`  
-> **设计分支**：`swarm/ux-design-1`  
-> **联合出品**：`@design-copy-1` × `@ux-sim-1`  
+> **适用仓库**：`Kaiserunix/homedatabase`
 > **定位**：可直接复制粘贴至 `README.md`、前端组件微文案（`frontend/src/`）与给父母/伴侣阅读的日常使用卡片。所有文案严格恪守代码事实边界（Layer 1 已交付复式账本 · Layer 2 可选沙箱 OCR · Layer 3 规划中 AI 财务副驾）。
 
 ---

@@ -1,6 +1,6 @@
 # HomeDatabase — Product Strategy, Consensus Positioning & Engineering Roadmap
 
-> **Status**: Pod A Cross-Functional Consensus (Tech Lead + Marketing & Growth + Simulated Household & Homelab Users)
+> **Status**: Product Strategy & Architecture Consensus (Engineering, Product & Household/Homelab User Perspectives)
 > **Scope**: Positioning, honest capability boundaries, conversion architecture, and prioritized P0–P2 engineering roadmap grounded in the current repository codebase.
 
 ---
