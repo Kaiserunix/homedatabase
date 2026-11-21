@@ -1,116 +1,94 @@
-# HomeDatabase · 让每个家庭拥有自己的 AI CFO
+# HomeDatabase · 自托管家庭复式账本（迈向家庭 AI CFO 的可核对财务底座）
 
 <div align="center">
 
-**把散落的账单，变成可以提问、可以推演、可以行动的家庭财务记忆。**
+**导错一份账单也不会污染账本：用「Staging 候选池复核 + 一键整批撤销 + 整数分复式分录 + 家庭隐私隔离与分摊确认」，把散落的日常账单变成经得起核对的家庭财务记录。**
 
 [![Backend CI](https://github.com/Kaiserunix/homedatabase/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/Kaiserunix/homedatabase/actions/workflows/backend-ci.yml)
 [![Frontend CI](https://github.com/Kaiserunix/homedatabase/actions/workflows/frontend-ci.yml/badge.svg)](https://github.com/Kaiserunix/homedatabase/actions/workflows/frontend-ci.yml)
 
-`Self-hosted` · `AI-assisted Import` · `Human-confirmed Ledger` · `AI CFO Roadmap`
+`Self-hosted` · `Double-Entry Integer Cents` · `Human-Confirmed Staging` · `Full-Batch Undo` · `AI CFO Roadmap`
 
-[快速体验](#本地启动) · [AI 未来蓝图](docs/AI_ROADMAP.md) · [投稿介绍与演示脚本](docs/SUBMISSION.md) · [接入自己的数据](docs/CONNECT_YOUR_DATA.md)
+[30 秒虚构账本体验](#快速体验30-秒虚构账本) · [产品策略与路线图](docs/PRODUCT_STRATEGY.md) · [接入自己的数据](docs/CONNECT_YOUR_DATA.md) · [AI 未来蓝图](docs/AI_ROADMAP.md) · [演示脚本](docs/SUBMISSION.md)
 
 </div>
 
-一张付款截图、一份银行流水、一笔家庭分摊，背后都藏着同一个问题：**我们的钱正在怎样改变生活？**
+---
 
-HomeDatabase 从一个能实际运行的家庭账本出发，向“家庭 AI 财务副驾”演进：今天，把分散的收支整理成可核对的记录；未来，让人们用一句话理解变化、比较计划、提前看见现金流压力。
+家庭财务信息分散在银行、支付软件、截图与表格里。多数记账方案要么把敏感流水交给云端，要么在导入几百条账单出错后直接污染整本账，或者在“全家全透明”与“各自记死账”之间两难。
 
-当前版本提供手机 PWA、桌面管理台、账户与分类、账单导入、分摊、报表和备份，并提供可选的 AI 账单识别工作器。后端为 FastAPI / SQLAlchemy，前端为 React / Vite；本地试用使用 SQLite，正式部署使用 PostgreSQL。**AI CFO 是产品愿景；自然语言问账、预测和主动建议属于规划能力。**
+**HomeDatabase** 先把最难做对的财务底座做扎实——今天提供可独立运行、可复核、可整批回滚的自托管复式家庭账本（FastAPI / SQLAlchemy + React / Vite，本地试用 SQLite，正式部署 PostgreSQL），并以此作为迈向可溯源「家庭 AI CFO」的可靠数据基石。
 
-**这是公开脱敏版：示例库从零生成，所有交易均为虚构，没有使用真实流水的日期、金额或对手方。** 仓库包含源码、迁移、测试、部署模板和示例数据，不包含运行中的数据库、原始账单、登录凭据、密钥或历史开发记录。
+> **能力边界诚实声明**：当前版本已交付完整的复式家庭账本、手机 PWA + 桌面管理台、CSV/XLSX 候选池导入、一键整批撤销、家庭分摊确认、五层 XLSX 审计报表，以及可选的账单 OCR 工作器（需单独配置 Linux Docker + `codex` CLI，默认关闭）。**自然语言问账、现金流预测与情景推演属于 Layer 3 规划能力，当前版本尚未提供对应入口。**
 
-- [接入自己的数据：空库初始化、账单导入、API 和 PostgreSQL](docs/CONNECT_YOUR_DATA.md)
-- [示例数据库与 CSV 模板](examples/README.md)
-- [公开数据范围与脱敏说明](docs/PUBLIC_DATA.md)
-- [服务器部署](infra/README.md) · [日常使用](docs/release/PARENTS_GUIDE.md)
+**公开脱敏版说明**：仓库内置的示例库从零生成，所有交易均为虚构，不包含真实流水、凭据、密钥或私人运行目录。
 
-## 为什么从家庭账本开始
+- [产品策略与演进优先级（共识路线图）](docs/PRODUCT_STRATEGY.md) · [UX 体验规范](docs/UX_EXPERIENCE_AND_DESIGN_SPEC.md)
+- [接入自己的数据：空库初始化、账单导入、API 与 PostgreSQL](docs/CONNECT_YOUR_DATA.md) · [家人手机端日常使用速查](docs/release/PARENTS_GUIDE.md)
+- [全部文档索引](docs/INDEX.md) · [示例数据库与 CSV 模板](examples/README.md) · [公开数据范围与脱敏说明](docs/PUBLIC_DATA.md) · [服务器部署](infra/README.md)
 
-家庭财务信息分散在银行、支付软件、截图与表格里。每个平台都能展示一部分数字，家庭成员仍然需要自己拼出完整的故事。
+---
 
-HomeDatabase 想把这段工作串起来：账单进入系统，数字得到核对，记录形成连续的历史，AI 再围绕这段历史回答真正影响生活的问题。
+## 为什么选择 HomeDatabase（已交付的核心优势）
 
-| 价值 | 当前落点 | 面向未来 |
+| 维度 | 当前已交付能力 | 解决的真实痛点 |
 | --- | --- | --- |
-| 📥 降低记账门槛 | CSV / XLSX 导入；可配置的 PDF / 图片 AI 识别 | 多来源语义归一，让更多账单格式进入同一条复核流程 |
-| 🧾 让数字有依据 | 整数金额、复式分录、候选确认、账期约束 | AI 回答带来源，计算过程可核对 |
-| 🏠 让家人协作更自然 | 个人与共享账户、成员权限、分摊确认、手机与桌面入口 | 在授权范围内理解共同预算与长期目标 |
-| 🔐 让数据由自己掌握 | 自托管数据库、加密源文件与备份、脱敏演示数据 | 按任务范围提供分析数据，探索本地模型适配 |
+| 🛡️ **防污染导入闭环** | 源文件加密归档 → **Staging 候选池**（SHA-256 文件去重、行哈希去重、重复流水提示）→ `expectedVersion` 乐观锁防并发 → 入账后支持 **一键整批无痕撤销 (`undo_batch`)** | 告别“导错一份 CSV 就彻底毁掉账本”的恐惧（在未产生退款/分摊/锁账期前可一键整批回滚） |
+| 🧾 **审计级复式底座** | **整数分 (`minor`)** 记账 + PostgreSQL 延迟借贷平衡触发器 + 账期锁定 (`Locks`) | 消除浮点精度误差与单边烂账，保证每一笔流水借贷平衡 |
+| 🔒 **隐私与家庭协作兼得** | 个人账户默认私密隔离，跨私有账户往来自动显示为 **`私人账户（已脱敏）`** 且保持复式平衡；**家庭分摊 (`Splits`)** 需对方点击「接受 / 退回理由」，原金额改动自动触发 `v2` 重新确认 | 既保留家庭公共账本透明，又尊重各自私房钱边界，避免单方面分摊纠纷 |
+| 📊 **五层审计级 XLSX 导出** | 后端 PostgreSQL `REPEATABLE READ` 事务快照 + 借贷平衡校验 + 防公式注入，输出从阅读账单、复式分录到 **Tier 4 期初/期末零差额勾稽** 与图表总览的 5 层工作簿 | 比算不准的前端图表更可靠，随时可离线归档审计 |
+| 📱 **双端共用一套真实账本** | 手机 PWA（日常记账、导入与分摊确认）+ 桌面管理台（分类、账期锁、批量审核、报表与备份）+ WebAuthn Passkey | 家人用轻量手机端，家庭管理员在桌面端精细治理 |
 
-## AI 展望：从“记下一笔”，到“看见下一步”
+---
 
-我们希望家庭财务软件最终可以接住这样的问题：
+## 三层演进架构：从可信账本走向可溯源 AI CFO
 
-> “这个月为什么多花了钱？把变化最大的三项和对应账单给我。”
->
-> “如果年底旅行，再保留六个月应急金，每个月需要预留多少？”
->
-> “换车、装修和提前还款，哪种安排对未来六个月现金流影响更大？”
-
-**以上是规划中的交互示例，当前版本尚未提供问答或预测入口。**
-
-这条路线的核心是把三件事连起来：**可信账本 → 有证据的理解 → 可比较的行动方案。**
+这条路线的核心原则是：**AI 输出永远先过可信账本与人工复核，不凭空编造数字。**
 
 ```mermaid
 flowchart LR
-    subgraph NOW[当前版本]
-        A[CSV / XLSX] --> C[候选复核]
-        B[PDF / 图片<br/>可选 AI 识别] --> C
-        C --> D[用户确认]
-        D --> E[家庭账本]
-        E --> F[报表与家庭协作]
+    subgraph L1["Layer 1 · 已交付（核心底座）"]
+        A[CSV / XLSX 账单] --> C[Staging 候选池<br/>去重与人工复核]
+        C --> D[确认入账 / 一键整批撤销]
+        D --> E[整数分复式家庭账本]
+        E --> F[家庭分摊 · 隐私脱敏 · 五层 XLSX]
     end
-    subgraph NEXT[未来规划]
-        E -.授权读取.-> G[自然语言问账]
-        G -.-> H[带来源的解释]
-        E -.-> I[现金流预测]
-        I -.-> J[目标规划与情景推演]
-        H -.-> K[用户选择下一步]
-        J -.-> K
+    subgraph L2["Layer 2 · 已交付（可选开启，默认关闭）"]
+        B[PDF / 图片账单<br/>Linux Codex-CLI OCR 工作器] --> C
+    end
+    subgraph L3["Layer 3 · 规划中（尚未上线）"]
+        E -.只读确定性分析 API.-> G[带来源追溯的自然语言问账]
+        E -.周期与预算规则引擎.-> H[现金流预测与大额支出情景对比]
     end
 ```
 
-| 阶段 | 能力 | 状态 |
+| 层次 | 能力范围 | 当前状态 |
 | --- | --- | --- |
-| **01 · 把账本建起来** | 自托管账本、手机 / 桌面端、导入确认、分摊与报表 | ✅ 当前可用 |
-| **02 · 让 AI 读懂账单** | PDF / 图片提取为结构化候选，用户确认后入账 | ⚙️ 已提供工作器，需单独配置，默认关闭 |
-| **03 · 让账本可以对话** | 自然语言问账、分类辅助、消费变化解释、来源追溯 | 🔭 规划中 |
-| **04 · 看见未来的现金流** | 收支预测、周期性支出识别、预算偏离提醒 | 🔭 规划中 |
-| **05 · 把愿望变成方案** | 应急金目标、旅行 / 大额消费计划、情景对比、可选月度复盘 | 🔭 长期探索 |
+| **Layer 1 · 可核对的家庭复式账本** | 自托管账本、手机 PWA / 桌面管理台、CSV/XLSX 候选池导入与整批撤销、家庭分摊确认、五层 XLSX 报表、WebAuthn 与加密备份 | ✅ **当前可用** |
+| **Layer 2 · 候选池 AI 账单识别工作器** | PDF / 图片提取为结构化候选记录，经用户复核确认后入账（绝不自动写入正式账本） | ⚙️ **已提供工作器**（需单独配置 Linux Docker + `codex` CLI，默认关闭） |
+| **Layer 3 · 带证据溯源的 AI CFO** | 先建确定性只读财务分析 API，再接入带交易来源引用的自然语言问账、周期支出识别、现金流预测与情景推演 | 🔭 **规划中（当前无对应入口）** |
 
-路线图以能力阶段组织，尚未承诺上线日期。详细的目标体验、落地路径与验证标准见 [AI 未来蓝图](docs/AI_ROADMAP.md)。
+详细的目标体验、落地路径与验证标准见 [AI 未来蓝图](docs/AI_ROADMAP.md) 与 [产品策略与演进优先级](docs/PRODUCT_STRATEGY.md)。
 
-## 已经可以展示什么
+---
 
-**一条能演示、能复核的完整链路：导入账单 → 查看候选 → 确认入账 → 查看报表。**
+## 快速体验（30 秒虚构账本）
 
-- **真实可运行的产品骨架：** 手机 PWA 与桌面管理台连接同一套 API 和账本。
-- **可选 AI 识别入口：** PDF / 图片经工作器提取字段，识别结果进入候选区；AI 输出与正式入账分开。
-- **可复现的演示材料：** 从零生成的虚构数据库、CSV 样例和空模板，使用者可直接替换为自己的数据。
-- **可检查的工程证据：** 公开测试、数据库迁移、OpenAPI 契约与 CI。首次发布的本地验证通过了 101 项后端测试、189 项前端测试，以及前端构建和体积检查；实时 CI 状态见顶部徽章。
+准备 Python 3.12+、[uv](https://docs.astral.sh/uv/getting-started/installation/)、Node.js 22+ 和 Git。以下命令可在 PowerShell、Bash 或 zsh 中执行。
 
-投稿时可直接使用 [项目摘要、亮点与三分钟演示脚本](docs/SUBMISSION.md)。
+### 方式 A：先用虚构账本立即体验（推荐首次试用）
 
-## 本地启动
-
-准备 Python 3.12+、[uv](https://docs.astral.sh/uv/getting-started/installation/)、Node.js 22+ 和 Git。下面的命令可在 PowerShell、Bash 或 zsh 中执行。
+无需构思三套密码，初始化脚本会直接生成带 6 笔虚构流水的本地 SQLite 演示库，并在终端打印一次性随机密码：
 
 ```sh
 git clone https://github.com/Kaiserunix/homedatabase.git
 cd homedatabase/backend
 uv sync --locked --group dev
-uv run python scripts/setup_local.py --mode personal --directory data/personal
+uv run python scripts/setup_local.py --mode demo --directory data/demo
+uv run --env-file data/demo/.env uvicorn homedatabase_api.main:app --app-dir src --host 127.0.0.1 --port 8000
 ```
 
-初始化会分别询问 `dad`、`mom`、`son` 的密码（至少 12 位，三人不同），创建空账本、初始账户和分类，并生成两把本地加密密钥。`son` 为家庭管理员。此版本固定这三个成员身份；成员数量和身份不能在页面里任意扩展。
-
-```sh
-uv run --env-file data/personal/.env uvicorn homedatabase_api.main:app --app-dir src --host 127.0.0.1 --port 8000
-```
-
-再打开一个终端，从仓库根目录启动前端：
+再打开第二个终端，从仓库根目录启动前端：
 
 ```sh
 cd frontend
@@ -118,42 +96,48 @@ npm ci --no-audit --no-fund
 npm run dev -- --host 127.0.0.1
 ```
 
-打开 [手机界面](http://localhost:5200/) 或 [桌面管理台](http://localhost:5200/admin.html)，使用刚设置的账号密码登录。前端默认通过 `/api` 连接真实后端，不需要配置 mock 或 Redis；本地配置使用同步任务。
+打开 [手机端 PWA](http://localhost:5200/) 或 [桌面管理台](http://localhost:5200/admin.html) 登录体验（前端默认通过 `/api` 直连本地后端，不需要配置 mock 或 Redis）。
 
-想先体验虚构账本，把初始化命令换为：
+> [!IMPORTANT]
+> **首次试用 3 个关键提示（避免踩坑）：**
+> 1. **🔑 首次请点「密码登录」**：登录页默认优先展示 `使用 Passkey 登录` 大按钮。全新初始化的账号尚未绑定 Passkey，请先点击按钮下方的 **「密码登录 ⌄」** 展开密码框，输入终端打印的随机密码（登录后可在“安全”页绑定 Passkey）。
+> 2. **📅 演示账目位于 `2026-08 ~ 2026-09`**：手机首页与桌面仪表盘默认汇总**当前自然月**，若当前不在 2026 年 8–9 月，首页显示 `¥0.00` 属正常现象；进入「流水」或「报表导出」切换至 `2026-08` / `2026-09` 即可看到完整演示数据。
+> 3. **👨‍👩‍👦 V1 固定三角色模板**：当前数据库 Schema 预置 `dad`、`mom`、`son` 三个成员账号，其中 **`son` 为唯一可访问 `/admin.html` 桌面管理台的家庭管理员**（二人世界/夫妻家庭建议直接使用 `son` 作为主理人账号、`mom` 或 `dad` 作为伴侣账号；动态成员增删已列入后续路线图）。
+
+### 方式 B：初始化自己的空账本（本地个人试用）
+
+正式记录自有账单时，另建独立目录（初始化脚本会拒绝覆盖已存在的目录）：
 
 ```sh
-uv run python scripts/setup_local.py --mode demo --directory data/demo
-uv run --env-file data/demo/.env uvicorn homedatabase_api.main:app --app-dir src --host 127.0.0.1 --port 8000
+cd homedatabase/backend
+uv run python scripts/setup_local.py --mode personal --directory data/personal
+uv run --env-file data/personal/.env uvicorn homedatabase_api.main:app --app-dir src --host 127.0.0.1 --port 8000
 ```
 
-演示模式为每个账号生成不同的随机密码，只在本机终端显示一次。演示库有 2026 年 8–9 月的 6 笔虚构账单；查看报表时选择对应月份。正式使用时另建 `data/personal` 空库。初始化脚本拒绝覆盖已经存在的目录。
+脚本会交互式设置 `dad`、`mom`、`son` 的独立密码（至少 12 位且互不相同），创建空账本、默认人民币账户与分类，并生成两把本地加密密钥。公网/服务器部署请使用 PostgreSQL + HTTPS，详见 [infra/README.md](infra/README.md)。
 
-## 导入自己的账单
+---
 
-1. 登录自己的账号，在“账户”中创建或选择对应的人民币账户。
-2. 手机端从“我的”进入“导入账单”，或在桌面端打开导入页面。
-3. 上传 CSV / XLSX，选择目标账户，等待生成候选记录。
-4. 检查日期、金额、收支、分类和重复提示，确认后才写入账本。
+## 导入自己的账单（Staging 候选复核流程）
 
-可以直接填写 [CSV 空模板](examples/import-template.csv)，也可以参考 [虚构样例](examples/transactions.csv)。表格金额单位是**元**，API 的 `amountCents` 单位是**分**。转账、退款和外币处理限制见[接入说明](docs/CONNECT_YOUR_DATA.md)。
+1. 登录账号，在“账户”中创建或选择对应的人民币账户（桌面端完整管理功能请使用 `son` 管理员账号登录 `/admin.html`）。
+2. 手机端从“我的 → 导入账单”，或桌面端打开“导入”页面。
+3. 上传 CSV / XLSX 文件并选择目标账户，系统先加密归档源文件并生成候选记录。
+4. 在候选区**核对日期、商户、金额、收支与去重状态，指定或修改分类、未设定的入账账户及外币汇率**，确认后写入正式账本（若确认入账后发现整批有误，且未涉及退款、分摊或已锁账期，可在批次详情中一键整批撤销）。
 
-PDF / 图片识别需要另行启用 OCR；默认本地启动不调用 AI。OCR 启用后图片会交给所配置的模型处理，配置方法见部署文档。
+- 可直接填写 [CSV 空模板](examples/import-template.csv)，或参考 [虚构样例](examples/transactions.csv)。
+- 表格金额单位为**元**，API 的 `amountCents` 单位为**分**。
+- **当前限制说明**：候选区暂不支持在页面直接改写已解析的原始日期、金额或收支方向；微信/支付宝中性交易（转账、提现、信用卡还款）与退款的边界说明见 [自有数据接入说明](docs/CONNECT_YOUR_DATA.md)。
+- **可选 OCR 识别**：默认本地启动不调用任何 AI。启用 PDF / 图片识别需按 [infra/README.md](infra/README.md) 部署可选 OCR 工作器（当前实现基于 Linux Docker + `codex` CLI）；启用后图片会发送至所配置模型提取为候选记录，仍须人工确认后入账。
 
-## 目录
+---
 
-```text
-backend/       API、数据库模型、迁移、测试、初始化脚本
-frontend/      手机 PWA 和桌面管理台
-examples/      纯虚构 SQLite 库、SQLite 表结构、CSV 样例与空模板
-infra/         PostgreSQL / Redis / Caddy 的 Docker Compose 部署
-docs/          自有数据接入、公开范围、使用与部署说明
-openapi.yaml   API 契约
-```
+## 已经可以验证的工程证据
 
-公开版只收录当前前后端主版本；旧 Streamlit 原型与私人运行目录未包含在内。
+- **可复现的测试与契约**：公开 OpenAPI 契约（[openapi.yaml](openapi.yaml)）、数据库迁移脚本、脱敏演示库检查与实时 CI（首次公开基线通过 101 项后端测试与 189 项前端测试，实时状态见顶部徽章）。
+- **投稿与演示材料**：需要快速介绍项目或录制 3 分钟演示，可直接参考 [项目摘要、亮点与三分钟演示脚本](docs/SUBMISSION.md)。
 
-## 验证
+### 本地验证命令
 
 ```sh
 cd backend
@@ -165,4 +149,17 @@ npm test
 npm run test:budget
 ```
 
-浏览器端到端测试另需启动真实后端并设置本地测试账号，见 `frontend/playwright.config.ts`。SQLite 适合本地试用；公网部署请按 [infra/README.md](infra/README.md) 使用 PostgreSQL、HTTPS 和独立凭据。
+浏览器端到端测试另需启动真实后端并配置本地测试账号，见 `frontend/playwright.config.ts`。
+
+## 仓库目录
+
+```text
+backend/       FastAPI 服务、SQLAlchemy 模型、迁移、测试与初始化脚本
+frontend/      手机 PWA 与桌面管理台（React / Vite）
+examples/      从零生成的虚构 SQLite 库、CSV 样例与空模板
+infra/         PostgreSQL / Redis / Caddy 的 Docker Compose 部署模板
+docs/          产品策略、AI 蓝图、自有数据接入、公开脱敏与演示说明
+openapi.yaml   OpenAPI 契约定义
+```
+
+公开版仅收录当前前后端主版本；旧 Streamlit 原型与私人运行目录未包含在内。
