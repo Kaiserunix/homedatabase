@@ -1,4 +1,81 @@
-# HomeDatabase 双机部署骨架
+# HomeDatabase 自托管与生产部署
+
+`infra/` 提供两套边界清晰的 Docker Compose 方案：
+
+1. **单机自托管（`infra/compose.yml`）**：适合本机、家用 NAS 或单台服务器一键启动；核心账本与可选 AI 识别完全解耦。
+2. **双机生产骨架（`infra/compose.domestic.yml` + `infra/compose.overseas-worker.yml`）**：将权威账本留 Domestic 2 GB 主机，将 `heavy` 队列放到海外主机。
+
+---
+
+## 一、单机自托管快速启动（`infra/compose.yml`）
+
+### Compose Profile 分层
+
+| Profile | 命令参数 | 包含服务 | 说明 |
+| --- | --- | --- | --- |
+| 默认（Core Ledger） | 无需 `--profile` | `postgres`、`redis`、`migrate`、`api`、`web` | 完整家庭账本、CSV/XLSX 导入复核与同源 PWA/管理台；**不启动任何 AI 容器或外网模型通道** |
+| 可选 AI OCR | `--profile ai-ocr`（兼容 `ocr`） | `ocr-dispatcher`、`ocr-runner` | 基于独立 `ocr_egress` 网络与 `codex_auth` 卷的 PDF/图片 OCR 工作器 |
+| 维护任务 | `--profile maintenance` | `backup`、`retention` | AES-256-GCM 加密备份与过期源文件清理 |
+
+### 一键启动（本机 / 局域网 HTTP）
+
+无需公网域名或手动生成 4 组密钥；脚本会在首次运行时自动生成安全的 `infra/.env`（绝不向终端打印密钥内容）并等待健康检查通过：
+
+```sh
+# Linux / macOS / Git Bash
+./infra/scripts/up.sh
+
+# 附带示例密码快速体验（仅 local 模式）
+./infra/scripts/up.sh --demo
+
+# 同时启动可选 AI OCR 容器
+./infra/scripts/up.sh --with-ai
+```
+
+Windows PowerShell：
+
+```powershell
+.\infra\scripts\up.ps1
+.\infra\scripts\up.ps1 -Demo
+.\infra\scripts\up.ps1 -WithAi
+```
+
+或分步手动执行：
+
+```sh
+python infra/scripts/init_env.py --mode local
+docker compose --env-file infra/.env -f infra/compose.yml up -d --build --wait
+docker compose --env-file infra/.env -f infra/compose.yml run --rm api homedatabase-seed --bootstrap-family
+```
+
+启动后访问 `http://127.0.0.1:8080/`（手机 PWA）或 `http://127.0.0.1:8080/admin.html`（桌面管理台）。如在局域网/Tailscale 内网访问，可运行：
+
+```sh
+python infra/scripts/init_env.py --mode local --lan-ip 192.168.1.50 --port 8080 --force
+```
+
+### 单机公网 HTTPS（叠加 `infra/compose.tls.yml`）
+
+拥有公网域名且开放 `80`/`443` 端口时，叠加 TLS 覆盖层即可自动切换为 `production` 安全基线与 Caddy 自动 HTTPS：
+
+```sh
+python infra/scripts/init_env.py --mode production --host finance.example.com --force
+docker compose --env-file infra/.env -f infra/compose.yml -f infra/compose.tls.yml up -d --build --wait
+docker compose --env-file infra/.env -f infra/compose.yml -f infra/compose.tls.yml run --rm api homedatabase-seed --bootstrap-family
+```
+
+### 静态校验
+
+```sh
+python infra/scripts/validate_infra.py --strict
+docker compose --env-file infra/.env.example -f infra/compose.yml config -q
+docker compose --env-file infra/.env.example -f infra/compose.yml --profile ai-ocr config -q
+docker compose --env-file infra/.env.example -f infra/compose.yml -f infra/compose.tls.yml config -q
+```
+
+---
+
+## 二、双机生产部署骨架（`compose.domestic.yml` + `compose.overseas-worker.yml`）
 
 这套 Compose 把账本权威数据留在国内 2 GB 主机：手机 PWA、桌面管理台、API、PostgreSQL、Redis、加密后的源文件与数据库备份都在国内机。`web` 容器使用 Caddy 同域提供页面和 `/api` 反代，并自动处理 HTTPS。海外 8 GB 主机只启动 `heavy` 队列、并固定 `concurrency=1`；它没有 PostgreSQL 地址、数据库密码、源文件密钥或备份密钥。
 
@@ -27,7 +104,7 @@
 
 ## 密钥准备
 
-在安全终端分别生成三个不同值；不要提交 `.env`，也不要把备份密钥放在备份目录旁边：
+在安全终端分别生成四个不同值（或直接基于模板运行 `python infra/scripts/init_env.py --mode domestic --host finance.example.com` 生成 `infra/.env.domestic`）；不要提交 `.env*`，也不要把备份密钥放在备份目录旁边：
 
 ```powershell
 python -c "import secrets; print(secrets.token_urlsafe(32))" # PostgreSQL 密码
@@ -50,7 +127,7 @@ HOMEDATABASE_TUNNEL_BIND_IP=10.88.0.1
 HOMEDATABASE_REDIS_TUNNEL_PORT=6379
 ```
 
-海外机只保存镜像引用和 Redis 凭据；不要复制国内 `.env.domestic`：
+海外机可基于 `infra/overseas.env.example` 生成 `infra/.env.overseas`，只保存镜像引用和 Redis 凭据；不要复制国内 `.env.domestic`：
 
 ```dotenv
 HOMEDATABASE_IMAGE=registry.example/homedatabase-api:2026-08-05.1
